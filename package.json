@@ -1,0 +1,42 @@
+{
+  "name": "kiwimbi-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Kiwimbi Kenya impact dashboard, served as a Google Apps Script web app. This repository contains code only - never data.",
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run build:client && npm run build:server && node scripts/verify-build.mjs",
+    "build:client": "vite build",
+    "build:server": "node scripts/build-server.mjs",
+    "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && tsc -p tsconfig.server.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "guard": "node scripts/check-no-data.mjs",
+    "prepare": "node scripts/install-hooks.mjs",
+    "verify": "npm run guard && npm run check && npm test && npm run build",
+    "push": "npm run guard && npm run build && clasp push --force",
+    "deploy": "node scripts/deploy.mjs"
+  },
+  "devDependencies": {
+    "@fontsource-variable/open-sans": "^5.3.0",
+    "@fontsource/montserrat": "^5.3.0",
+    "@fontsource/noto-serif": "^5.3.0",
+    "@google/clasp": "^3.4.1",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@tsconfig/svelte": "^5.0.8",
+    "@types/google-apps-script": "^2.0.13",
+    "@types/node": "^24.0.0",
+    "echarts": "^6.1.0",
+    "esbuild": "^0.28.2",
+    "svelte": "^5.57.1",
+    "svelte-check": "^4.7.6",
+    "typescript": "~6.0.3",
+    "vite": "^8.3.0",
+    "vite-plugin-singlefile": "^2.3.3",
+    "vitest": "^5.0.1"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -1,0 +1,691 @@
+/* Kiwimbi Impact: design tokens.
+   Colors come from the Kiwimbi logo (water drop, leaf, red earth, ripples) on warm paper,
+   with a deep lake-blue band in the spirit of WWF's navy. The "-deep" colors are the
+   text-safe versions (at least 4.5:1 on paper and on their tints). Chart colors are
+   re-stepped so every pair stays distinguishable for colorblind readers (docs/PLAN.md §7). */
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces */
+  --paper: #fbf8f1;
+  --paper-2: #f3eee2;
+  --card: #fffdf8;
+  --card-2: #f6f2e8;
+  --rule: #e2dccd;
+  --rule-strong: #cbc3b0;
+
+  /* Ink */
+  --ink: #1c2420;
+  --ink-2: #48534e;
+  --ink-3: #5f6963;
+  --link: #0a6a93;
+  --focus: #0a6a93;
+
+  /* Kiwimbi colors, their text-safe deep versions, and soft tints */
+  --leaf: #a0ce4e;
+  --water: #27aae3;
+  --sun: #fec96b;
+  --earth: #a84830;
+  --teal: #00a8a8;
+  --coral: #ed6967;
+  --leaf-deep: #4a7314;
+  --water-deep: #0a6a93;
+  --sun-deep: #8a5a00;
+  --earth-deep: #8f3a24;
+  --teal-deep: #08706f;
+  --coral-deep: #b1302e;
+  --leaf-tint: #eef4df;
+  --water-tint: #e4f2f9;
+  --sun-tint: #fff3d6;
+  --earth-tint: #f8e9e2;
+  --teal-tint: #e0f1ef;
+  --coral-tint: #fce8e5;
+
+  /* The deep band */
+  --lake: #0f3a45;
+  --lake-2: #174a57;
+  --on-lake: #f5f1e6;
+  --on-lake-2: #bfd3d3;
+
+  /* Calls to action */
+  --cta: #a84830;
+  --cta-hover: #8f3a24;
+  --on-cta: #ffffff;
+
+  /* Charts */
+  --series-1: #729d02;
+  --series-2: #a7472f;
+  --series-3: #0098cf;
+  --series-4: #be8b25;
+  --series-5: #09a0a0;
+  --series-6: #e96563;
+  --ghost: #9d9f97;
+  /* Comparison periods A and B (bands on charts, chips in the filters) */
+  --cmp-a: var(--water-deep);
+  --cmp-b: var(--sun-deep);
+  --grid: #ebe6da;
+  --axis: #cbc3b0;
+  --holiday: rgba(120, 110, 90, 0.1);
+  --hatch: rgba(120, 110, 90, 0.4);
+  --ramp-0: #efebe1;
+  --ramp-1: #dcebc4;
+  --ramp-2: #b9d88a;
+  --ramp-3: #93c04f;
+  --ramp-4: #6f9e1f;
+  --ramp-5: #4f7a0c;
+  --ramp-6: #355606;
+
+  /* Status (managers' view) */
+  --good: #2f7d10;
+  --good-bg: #e7f3dc;
+  --warn: #8a5a00;
+  --warn-bg: #fdf1d6;
+  --crit: #b3261e;
+  --crit-bg: #fbe4e2;
+
+  /* Older names still used by the managers' view */
+  --page: var(--paper);
+  --hairline: var(--rule);
+  --hairline-strong: var(--rule-strong);
+  --accent: var(--leaf);
+  --accent-ink: #1c2420;
+  --accent-wash: var(--leaf-tint);
+
+  --shadow: none;
+  --radius: 4px;
+  --radius-sm: 3px;
+  --font-sans: 'Open Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-head: var(--font-sans);
+  --font-serif: 'Noto Serif', Georgia, 'Times New Roman', serif;
+  --wrap: 1200px;
+  --gutter: 24px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --paper: #121714;
+    --paper-2: #181f1b;
+    --card: #161c19;
+    --card-2: #1c2420;
+    --rule: #2b3530;
+    --rule-strong: #3c4842;
+    --ink: #efece4;
+    --ink-2: #c4c8c0;
+    --ink-3: #9ba39c;
+    --link: #62c1ec;
+    --focus: #62c1ec;
+    --leaf-deep: #a6d25e;
+    --water-deep: #62c1ec;
+    --sun-deep: #f3c35a;
+    --earth-deep: #ee8a6b;
+    --teal-deep: #52cbc6;
+    --coral-deep: #ff8e8a;
+    --leaf-tint: #1a2415;
+    --water-tint: #10212a;
+    --sun-tint: #262013;
+    --earth-tint: #291814;
+    --teal-tint: #0f2423;
+    --coral-tint: #2a1716;
+    --lake: #0b2a32;
+    --lake-2: #10353e;
+    --on-lake: #f1ede3;
+    --on-lake-2: #a9c2c2;
+    --series-2: #ae4d35;
+    --series-4: #b48216;
+    --series-6: #de5c5b;
+    --ghost: #6f7770;
+    --grid: #222b27;
+    --axis: #3c4842;
+    --holiday: rgba(255, 255, 255, 0.05);
+    --hatch: rgba(190, 185, 170, 0.32);
+    --ramp-0: #1d2521;
+    --ramp-1: #2c3a1c;
+    --ramp-2: #3f5a1d;
+    --ramp-3: #557c1f;
+    --ramp-4: #6f9e1f;
+    --ramp-5: #93c04f;
+    --ramp-6: #b9d88a;
+    --good: #7fcf52;
+    --good-bg: #1c2e14;
+    --warn: #f2b84b;
+    --warn-bg: #33270f;
+    --crit: #ff8a80;
+    --crit-bg: #3a1917;
+    --accent-ink: #10181a;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --paper: #121714;
+  --paper-2: #181f1b;
+  --card: #161c19;
+  --card-2: #1c2420;
+  --rule: #2b3530;
+  --rule-strong: #3c4842;
+  --ink: #efece4;
+  --ink-2: #c4c8c0;
+  --ink-3: #9ba39c;
+  --link: #62c1ec;
+  --focus: #62c1ec;
+  --leaf-deep: #a6d25e;
+  --water-deep: #62c1ec;
+  --sun-deep: #f3c35a;
+  --earth-deep: #ee8a6b;
+  --teal-deep: #52cbc6;
+  --coral-deep: #ff8e8a;
+  --leaf-tint: #1a2415;
+  --water-tint: #10212a;
+  --sun-tint: #262013;
+  --earth-tint: #291814;
+  --teal-tint: #0f2423;
+  --coral-tint: #2a1716;
+  --lake: #0b2a32;
+  --lake-2: #10353e;
+  --on-lake: #f1ede3;
+  --on-lake-2: #a9c2c2;
+  --series-2: #ae4d35;
+  --series-4: #b48216;
+  --series-6: #de5c5b;
+  --ghost: #6f7770;
+  --grid: #222b27;
+  --axis: #3c4842;
+  --holiday: rgba(255, 255, 255, 0.05);
+  --hatch: rgba(190, 185, 170, 0.32);
+  --ramp-0: #1d2521;
+  --ramp-1: #2c3a1c;
+  --ramp-2: #3f5a1d;
+  --ramp-3: #557c1f;
+  --ramp-4: #6f9e1f;
+  --ramp-5: #93c04f;
+  --ramp-6: #b9d88a;
+  --good: #7fcf52;
+  --good-bg: #1c2e14;
+  --warn: #f2b84b;
+  --warn-bg: #33270f;
+  --crit: #ff8a80;
+  --crit-bg: #3a1917;
+  --accent-ink: #10181a;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-head);
+  font-weight: 800;
+  font-stretch: 75%;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  margin: 0;
+  color: var(--ink);
+}
+h1 {
+  font-size: 26px;
+}
+h2 {
+  font-size: 20px;
+}
+h3 {
+  font-size: 17px;
+}
+
+a {
+  color: var(--link);
+  text-underline-offset: 3px;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+img {
+  max-width: 100%;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.muted {
+  color: var(--ink-3);
+}
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Display type: condensed, heavy, tight (headlines and big numbers) */
+.display {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  font-stretch: 75%;
+  letter-spacing: -0.02em;
+  line-height: 0.98;
+}
+.kicker {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* Page frame for full-bleed bands */
+.wrap {
+  max-width: var(--wrap);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+/* Story building blocks (shared by the chapters) */
+.s-block {
+  margin-top: clamp(44px, 5.5vw, 72px);
+}
+.s-block > h3 {
+  font-size: clamp(24px, 2.6vw, 32px);
+  margin-bottom: 6px;
+}
+.s-note {
+  margin: 0 0 18px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-3);
+  max-width: 60em;
+}
+.s-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(32px, 4vw, 64px);
+}
+.s-pair > .s-block {
+  min-width: 0;
+}
+section[id] {
+  scroll-margin-top: 84px;
+}
+@media (max-width: 900px) {
+  .s-pair {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ------------------------------------------------------------------ managers' dashboard
+   The dashboard keeps the look of the first version: white cards on a light page, pill
+   controls, Montserrat headings. <html data-view="managers"> switches the colors below. */
+
+:root[data-view='managers'] {
+  --paper: #f6f7f3;
+  --card: #ffffff;
+  --card-2: #fafbf8;
+  --rule: #e3e6df;
+  --rule-strong: #cfd4ca;
+  --ink: #1f2a2e;
+  --ink-2: #56635f;
+  --ink-3: #66726e;
+  --link: #0077a8;
+  --focus: #0077a8;
+  --accent-ink: #1f2a2e;
+  --accent-wash: #eef6e1;
+  --ghost: #9aa39f;
+  --grid: #eceee8;
+  --axis: #cfd4ca;
+  --holiday: rgba(136, 135, 128, 0.12);
+  --hatch: rgba(136, 135, 128, 0.45);
+  --ramp-0: #f0f2ec;
+  --shadow: 0 1px 2px rgba(31, 42, 46, 0.05), 0 6px 20px rgba(31, 42, 46, 0.05);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --font-head: 'Montserrat', 'Open Sans', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-view='managers']:not([data-theme='light']) {
+    --paper: #0c1113;
+    --card: #141b1d;
+    --card-2: #182124;
+    --rule: #243034;
+    --rule-strong: #33434a;
+    --ink: #eef3f1;
+    --ink-2: #b4c0bc;
+    --ink-3: #8d9a96;
+    --link: #5cc3ef;
+    --focus: #5cc3ef;
+    --accent-ink: #10181a;
+    --accent-wash: #1d2a17;
+    --ghost: #6c7875;
+    --grid: #1f292c;
+    --axis: #33434a;
+    --holiday: rgba(255, 255, 255, 0.05);
+    --hatch: rgba(180, 178, 169, 0.35);
+    --ramp-0: #1b2427;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.25);
+  }
+}
+:root[data-view='managers'][data-theme='dark'] {
+  --paper: #0c1113;
+  --card: #141b1d;
+  --card-2: #182124;
+  --rule: #243034;
+  --rule-strong: #33434a;
+  --ink: #eef3f1;
+  --ink-2: #b4c0bc;
+  --ink-3: #8d9a96;
+  --link: #5cc3ef;
+  --focus: #5cc3ef;
+  --accent-ink: #10181a;
+  --accent-wash: #1d2a17;
+  --ghost: #6c7875;
+  --grid: #1f292c;
+  --axis: #33434a;
+  --holiday: rgba(255, 255, 255, 0.05);
+  --hatch: rgba(180, 178, 169, 0.35);
+  --ramp-0: #1b2427;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+/* Low-specificity defaults, so each component's own heading sizes still win. */
+:where(:root[data-view='managers']) body {
+  font-size: 15px;
+  line-height: 1.5;
+}
+:where(:root[data-view='managers']) :is(h1, h2, h3) {
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-stretch: normal;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+:where(:root[data-view='managers']) h1 {
+  font-size: 20px;
+}
+:where(:root[data-view='managers']) h2 {
+  font-size: 16px;
+}
+:where(:root[data-view='managers']) h3 {
+  font-size: 14px;
+}
+
+.shell {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0 20px 48px;
+}
+.grid {
+  display: grid;
+  gap: 16px;
+}
+.grid.kpis {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+.grid.two {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr));
+}
+.grid.three {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+}
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.section-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 28px 0 12px;
+}
+.section-title p {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+/* Cards */
+.card {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px 20px;
+  min-width: 0;
+}
+.card.flat {
+  box-shadow: none;
+}
+
+/* Controls */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--rule-strong);
+  background: var(--card);
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.btn:hover {
+  border-color: var(--ink-3);
+}
+.btn.icon {
+  width: 34px;
+  padding: 0;
+  justify-content: center;
+}
+.btn.accent {
+  background: var(--leaf);
+  border-color: var(--leaf);
+  color: #1f2a2e;
+  font-weight: 700;
+}
+.btn.ghost {
+  border-color: transparent;
+  background: transparent;
+}
+.btn.ghost:hover {
+  background: var(--card-2);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.seg {
+  display: inline-flex;
+  background: var(--card-2);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+.seg button {
+  border: 0;
+  background: transparent;
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 13px;
+  color: var(--ink-2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.seg button[aria-pressed='true'] {
+  background: var(--card);
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.field {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+select.input,
+input.input {
+  height: 34px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 999px;
+  background: var(--card);
+  padding: 0 12px;
+  font-size: 13px;
+  color: var(--ink);
+}
+input[type='date'].input {
+  border-radius: 10px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--card-2);
+  border: 1px solid var(--rule);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.badge.good {
+  color: var(--good);
+  background: var(--good-bg);
+}
+.badge.warn {
+  color: var(--warn);
+  background: var(--warn-bg);
+}
+.badge.crit {
+  color: var(--crit);
+  background: var(--crit-bg);
+}
+.badge.neutral {
+  color: var(--ink-2);
+  background: var(--card-2);
+}
+
+.dim {
+  opacity: 0.55;
+  transition: opacity 0.2s;
+}
+
+@media (max-width: 640px) {
+  :root {
+    --gutter: 16px;
+  }
+  .shell {
+    padding: 0 12px 40px;
+  }
+  .card {
+    padding: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Print. <html data-print="report"> prints only the impact report (src/print); "page" prints
+   the page on screen. Page numbers use CSS page margin boxes where the browser supports them,
+   with the one-line notice from DATA_NOTICE.short (src/content.ts) on every page. */
+.print-only {
+  display: none;
+}
+@page {
+  margin: 14mm 14mm 16mm;
+  @bottom-center {
+    content: 'Kiwimbi · Unaudited figures, subject to correction · page ' counter(page) ' of ' counter(pages);
+    font-family: 'Open Sans', Arial, sans-serif;
+    font-size: 8pt;
+    color: #5f6963;
+  }
+}
+@media print {
+  :root[data-print='report'] #app > :not(.print-report) {
+    display: none !important;
+  }
+  :root[data-print='report'] .print-report {
+    display: block;
+  }
+  :root[data-print='report'],
+  :root[data-print='report'] body {
+    background: #ffffff;
+  }
+  :root {
+    --paper: #ffffff;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block;
+  }
+  .card,
+  section {
+    break-inside: avoid;
+    box-shadow: none;
+  }
+  .shell {
+    max-width: none;
+    padding: 0;
+  }
+}

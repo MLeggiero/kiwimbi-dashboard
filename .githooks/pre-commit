@@ -1,0 +1,3 @@
+#!/bin/sh
+# Blocks commits that would add data or credentials to the repository.
+exec node scripts/check-no-data.mjs

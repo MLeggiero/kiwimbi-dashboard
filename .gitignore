@@ -1,0 +1,53 @@
+# Dependencies and build output
+node_modules/
+dist-gas/
+.vite/
+coverage/
+
+# Apps Script project pointer and Google credentials: never commit
+.clasp.json
+.clasprc.json
+**/.clasprc.json
+creds.json
+credentials*.json
+client_secret*.json
+*service-account*.json
+
+# Data must never enter this repository (see README > Security model)
+*.xlsx
+*.xls
+*.xlsm
+*.ods
+*.numbers
+*.csv
+*.tsv
+*.parquet
+*.sqlite
+*.db
+*.gsheet
+*.gdoc
+*.gslides
+*.gform
+*.har
+*.pdf
+kiwimbi-*.png
+[Ss]creen*shot*
+data/
+exports/
+*.export.json
+.kiwimbi-guard-denylist
+
+# Keys
+*.p12
+*.pfx
+*.pem
+*.key
+
+# Local environment
+.env
+.env.*
+.DS_Store
+Thumbs.db
+
+# The web-app deployment ID used by npm run deploy (kept out of the repository)
+.clasp-deployment
