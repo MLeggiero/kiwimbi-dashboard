@@ -1,6 +1,6 @@
 import { countWeekdays, dayParts, fmtDayShort, fmtRange, isoToDay, monthName, shiftYears, startOfMonth, startOfNextMonth, startOfWeek, weekdayIndex } from '../../shared/dates';
 import type { ActiveDays, MetricId } from '../../shared/types';
-import type { Dataset } from './dataset';
+import type { Dataset, SeriesKey } from './dataset';
 
 export type Granularity = 'week' | 'month' | 'term';
 
@@ -63,7 +63,7 @@ export interface RangeStats {
   coveredWeekdays: number;
 }
 
-export function rangeStats(ds: Dataset, metrics: MetricId[], from: number, to: number): RangeStats {
+export function rangeStats(ds: Dataset, metrics: readonly SeriesKey[], from: number, to: number): RangeStats {
   let total = 0;
   let coveredDays = 0;
   let coveredWeekdays = 0;
@@ -72,8 +72,10 @@ export function rangeStats(ds: Dataset, metrics: MetricId[], from: number, to: n
     if (i < 0 || i >= ds.length) continue;
     let covered = false;
     for (const m of metrics) {
-      total += ds.daily[m].values[i];
-      if (ds.daily[m].covered[i]) covered = true;
+      const s = ds.daily[m];
+      if (!s) continue;
+      total += s.values[i];
+      if (s.covered[i]) covered = true;
     }
     if (covered) {
       coveredDays++;
@@ -84,7 +86,7 @@ export function rangeStats(ds: Dataset, metrics: MetricId[], from: number, to: n
 }
 
 /** Bucket totals. A bucket no report covers is null ("no reports"), never 0. */
-export function aggregate(ds: Dataset, metrics: MetricId[], buckets: Bucket[]): { values: (number | null)[]; coverage: number[] } {
+export function aggregate(ds: Dataset, metrics: readonly SeriesKey[], buckets: Bucket[]): { values: (number | null)[]; coverage: number[] } {
   const values: (number | null)[] = [];
   const coverage: number[] = [];
   for (const b of buckets) {
@@ -164,7 +166,7 @@ export function holidayFlags(buckets: Bucket[], terms: Terms): boolean[] {
 }
 
 /** Weekly totals for the `n` weeks ending with the week containing `end` (sparklines). */
-export function lastWeeks(ds: Dataset, metrics: MetricId[], end: number, n: number): (number | null)[] {
+export function lastWeeks(ds: Dataset, metrics: readonly SeriesKey[], end: number, n: number): (number | null)[] {
   const lastStart = startOfWeek(end);
   const buckets = makeBuckets(lastStart - 7 * (n - 1), lastStart + 6, 'week', []);
   return aggregate(ds, metrics, buckets).values;

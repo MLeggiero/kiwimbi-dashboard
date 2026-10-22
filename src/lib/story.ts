@@ -1,9 +1,10 @@
-import { CLASS_METRICS, ENRICHMENT, MEAL_SCHOOLS, METRIC_BY_ID } from '../../shared/metrics';
+import { ENRICHMENT, MEAL_SCHOOLS, METRIC_BY_ID, TEACHING_METRICS } from '../../shared/metrics';
 import { dayParts, fmtDay, fmtDayShort, fmtRange, startOfYear } from '../../shared/dates';
 import type { MetricId } from '../../shared/types';
-import type { Dataset } from './dataset';
+import { MAIN_BOOKS, type Dataset } from './dataset';
 import type { Preset } from './presets';
 import { rangeStats, typicalWeekly } from './series';
+import { EST_CLASSROOM } from './teaching';
 
 // The numbers behind the impact story. Pure functions of the dataset, so they can be
 // tested. The story never shows report counts or data-check counts (those are for
@@ -89,13 +90,16 @@ export interface Story {
   schools: Share[];
   visits: Measure;
   books: Measure;
-  /** Books borrowed per library visit. */
+  /** Main-library books borrowed per library visit (visits are counted at the main library). */
   booksPerVisit: number | null;
-  classes: Measure;
-  primary: number;
-  secondary: number;
-  /** Classes in an average school week (five school days with reports). */
-  classesPerWeek: number | null;
+  /** Contact hours: time teaching or mentoring students, classroom and mentorship. */
+  hours: Measure;
+  classroom: number;
+  mentorship: number;
+  /** Part of the classroom hours estimated from old lesson counts (40 minutes a lesson). */
+  estimated: number;
+  /** Contact hours in an average school week (five school days with reports). */
+  hoursPerWeek: number | null;
   programs: ProgramStat[];
   workshops: number | null;
 }
@@ -105,8 +109,9 @@ export function buildStory(ds: Dataset, preset: Preset, from: number, to: number
   const meals = measure(ds, MEAL_SCHOOLS, p);
   const visits = measure(ds, ['library_visits'], p);
   const books = measure(ds, ['books_checked_out'], p);
-  const classes = measure(ds, CLASS_METRICS, p);
-  const classStats = rangeStats(ds, CLASS_METRICS, p.from, p.to);
+  const hours = measure(ds, TEACHING_METRICS, p);
+  const hourStats = rangeStats(ds, TEACHING_METRICS, p.from, p.to);
+  const mainBooks = rangeStats(ds, MAIN_BOOKS, p.from, p.to);
   const workshops = rangeStats(ds, ['agronomy_workshops'], p.from, p.to);
   return {
     period: p,
@@ -114,11 +119,12 @@ export function buildStory(ds: Dataset, preset: Preset, from: number, to: number
     schools: shares(ds, MEAL_SCHOOLS, p),
     visits,
     books,
-    booksPerVisit: visits.total && books.total !== null ? books.total / visits.total : null,
-    classes,
-    primary: rangeStats(ds, ['classes_primary'], p.from, p.to).total,
-    secondary: rangeStats(ds, ['classes_secondary'], p.from, p.to).total,
-    classesPerWeek: classStats.coveredWeekdays ? classStats.total / (classStats.coveredWeekdays / 5) : null,
+    booksPerVisit: visits.total && mainBooks.coveredDays ? mainBooks.total / visits.total : null,
+    hours,
+    classroom: rangeStats(ds, ['contact_classroom'], p.from, p.to).total,
+    mentorship: rangeStats(ds, ['contact_mentorship'], p.from, p.to).total,
+    estimated: rangeStats(ds, [EST_CLASSROOM], p.from, p.to).total,
+    hoursPerWeek: hourStats.coveredWeekdays ? hourStats.total / (hourStats.coveredWeekdays / 5) : null,
     programs: ENRICHMENT.map((m) => {
       const st = rangeStats(ds, [m], p.from, p.to);
       return { id: m, total: st.coveredDays ? st.total : null, typical: typicalWeekly(ds, m, p.from, p.to) };

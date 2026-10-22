@@ -1,16 +1,19 @@
 import { fmtRange, ymdToDay } from '../../shared/dates';
-import type { ActiveDays, MetricId } from '../../shared/types';
+import type { ActiveDays } from '../../shared/types';
+import type { SeriesKey } from '../lib/dataset';
 import type { TableData } from '../lib/download';
 import type { EChartsCoreOption } from '../lib/echarts';
 import { fmtCompact, fmtInt, fmtOne } from '../lib/format';
 import { aggregate, cumulative, perActiveDay, rolling, rollingWindow } from '../lib/series';
 import type { ViewContext } from '../lib/view';
-import { asParams, bandSeries, baseOption, compareBandSeries, compareNotes, numericValue, timeXAxes, tipNote, tipRow, tipTitle, tooltipBase, valueYAxes, type LegendItem } from './common';
+import { asParams, bandSeries, baseOption, compareBandSeries, compareNotes, ESTIMATED_LABEL, estimatedColor, estimatedItemStyle, estimatedLegend, numericValue, timeXAxes, tipNote, tipRow, tipTitle, tooltipBase, valueYAxes, type LegendItem } from './common';
 
 export interface SeriesSpec {
   name: string;
   color: string;
-  metrics: MetricId[];
+  metrics: SeriesKey[];
+  /** With `grouped`: series sharing a stack name stack into one bar (books by location). */
+  stack?: string;
 }
 
 export interface ChartResult {
@@ -31,6 +34,10 @@ export interface TimeSeriesInput {
   grouped?: boolean;
   /** Annual target: drawn as a pace line in the running-total view when the range starts on Jan 1. */
   target?: { value: number; year: number } | null;
+  /** The estimated part of a single series (contact hours from old lesson counts), drawn in the estimated style. */
+  estimated?: SeriesKey[];
+  /** Extra columns for the table and CSV only, kept off the chart (library lessons). */
+  tableOnly?: SeriesSpec[];
 }
 
 type Vals = (number | null)[];
@@ -57,6 +64,10 @@ export function buildTimeSeries(inp: TimeSeriesInput): ChartResult {
   const fmt = rate ? fmtOne : fmtInt;
   const round = (v: number | null) => (v === null ? null : rate ? Math.round(v * 10) / 10 : Math.round(v));
   const cmpRaw = ctx.cmp ? align(aggregate(ctx.ds, metrics, ctx.cmp.buckets).values, n) : null;
+  // Contact hours estimated from old lesson counts get the estimated style (single-series charts).
+  const estRaw = inp.estimated && series.length === 1 ? aggregate(ctx.ds, inp.estimated, buckets).values : null;
+  const hasEst = !!estRaw?.some((v) => v !== null && v > 0);
+  const cmpEst = !!(inp.estimated && ctx.cmp && aggregate(ctx.ds, inp.estimated, ctx.cmp.buckets).values.some((v) => v !== null && v > 0));
 
   const out: Record<string, unknown>[] = [bandSeries(buckets, ctx.holidays, noReports, theme)];
   const legend: LegendItem[] = [];
@@ -84,9 +95,18 @@ export function buildTimeSeries(inp: TimeSeriesInput): ChartResult {
     withProvisional('run', 'Running total', run, color, 4, { areaStyle: { color, opacity: 0.1 } });
     legend.push({ label: 'Running total', color, kind: 'area' });
     addColumn('Running total', run);
+    if (hasEst && estRaw) {
+      // Redraw the stretch built from estimated weeks in the estimated style.
+      const isEst = (i: number) => (estRaw[i] ?? 0) > 0;
+      const part = run.map((v, i) => (isEst(i) || (i > 0 && isEst(i - 1)) ? v : null));
+      out.push({ id: 'run-est', name: ESTIMATED_LABEL, type: 'line', data: part, lineStyle: { color: estimatedColor(color, theme), width: 3, type: [5, 3] }, itemStyle: { color: estimatedColor(color, theme) }, z: 5, ...smooth });
+      legend.push(estimatedLegend(color, theme));
+      addColumn(`${ESTIMATED_LABEL} (running total)`, cumulative(estRaw));
+    }
     if (cmpRaw && ctx.cmp) {
       const cr = cumulative(cmpRaw).map((v, i) => (i < ctx.cmp!.buckets.length ? v : null));
-      out.push({ id: 'ghost', name: ctx.cmp.label, type: 'line', data: cr, lineStyle: { color: theme.ghost, width: 2 }, itemStyle: { color: theme.ghost }, z: 3, ...smooth });
+      out.push({ id: 'ghost', name: ctx.cmp.label, type: 'line', data: cr, lineStyle: { color: theme.ghost, width: 2, type: cmpEst ? [5, 3] : 'solid' }, itemStyle: { color: theme.ghost }, z: 3, ...smooth });
+      if (cmpEst && !hasEst) legend.push(estimatedLegend(color, theme));
       legend.push({ label: ctx.cmp.label, color: theme.ghost, kind: 'ghost' });
       addColumn(ctx.cmp.label, cr);
     }
@@ -101,24 +121,44 @@ export function buildTimeSeries(inp: TimeSeriesInput): ChartResult {
   } else {
     const tx = (vals: Vals) => (rate ? perActiveDay(vals, buckets, activeDays) : vals);
     series.forEach((s, si) => {
-      const vals = tx(aggregate(ctx.ds, s.metrics, buckets).values);
+      const all = tx(aggregate(ctx.ds, s.metrics, buckets).values);
+      const est = hasEst && estRaw ? tx(estRaw) : null;
+      // With estimated weeks, the bar splits into reported (below) and estimated (above).
+      const vals = est ? all.map((v, i) => (v === null ? null : Math.max(0, v - (est[i] ?? 0)))) : all;
       const single = series.length === 1;
-      const top = inp.grouped || single || si === series.length - 1;
+      const lastInStack = !s.stack || !series.slice(si + 1).some((o) => o.stack === s.stack);
+      const top = !est && (inp.grouped ? lastInStack : single || si === series.length - 1);
       out.push({
         id: `s${si}`,
-        name: s.name,
+        name: est ? `${s.name} (reported as hours)` : s.name,
         type: 'bar',
-        stack: inp.grouped ? undefined : 'total',
+        stack: inp.grouped ? s.stack : 'total',
         barMaxWidth: inp.grouped ? 14 : 24,
         barGap: inp.grouped ? '20%' : undefined,
         data: vals.map((v, i) => ({ value: v, itemStyle: { opacity: isProv(i) ? 0.4 : single ? 0.6 : 1 } })),
-        itemStyle: { color: s.color, borderRadius: top ? [4, 4, 0, 0] : 0, borderColor: theme.card, borderWidth: single || inp.grouped ? 0 : 1 },
+        itemStyle: { color: s.color, borderRadius: top ? [4, 4, 0, 0] : 0, borderColor: theme.card, borderWidth: (single || inp.grouped) && !s.stack ? 0 : 1 },
         emphasis: { disabled: true },
         z: 2,
       });
-      legend.push({ label: s.name, color: s.color, kind: 'bar' });
-      addColumn(s.name, vals);
+      legend.push({ label: est ? `${s.name} (reported as hours)` : s.name, color: s.color, kind: 'bar' });
+      addColumn(s.name, all);
+      if (est) {
+        out.push({
+          id: `s${si}-est`,
+          name: ESTIMATED_LABEL,
+          type: 'bar',
+          stack: 'total',
+          barMaxWidth: 24,
+          data: est.map((v) => (v ? v : null)),
+          itemStyle: { ...estimatedItemStyle(s.color, theme), borderRadius: [4, 4, 0, 0] },
+          emphasis: { disabled: true },
+          z: 2,
+        });
+        legend.push(estimatedLegend(s.color, theme));
+        addColumn(`${s.name}: ${ESTIMATED_LABEL.toLowerCase()}`, est);
+      }
     });
+    for (const s of inp.tableOnly ?? []) addColumn(s.name, tx(aggregate(ctx.ds, s.metrics, buckets).values));
     const totals = tx(totalRaw);
     if (series.length > 1 && !inp.grouped) addColumn('Total', totals);
     const win = rollingWindow(g);

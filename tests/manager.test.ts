@@ -18,7 +18,7 @@ import type { ChartTheme } from '../src/lib/theme.svelte';
 import { runPipeline } from '../shared/pipeline';
 import { toOpsPayload, toPublicPayload } from '../shared/payload';
 import { isoToDay } from '../shared/dates';
-import { CLASS_METRICS, MEAL_SCHOOLS } from '../shared/metrics';
+import { MEAL_SCHOOLS } from '../shared/metrics';
 import { makeFakeSheet } from '../dev/fake-sheet';
 
 const today = '2026-09-23';
@@ -33,7 +33,7 @@ const ytd = ctx('2026-01-01', today);
 describe('takeaway titles', () => {
   it('names the biggest movers against last year', () => {
     const rows = headlineChanges(ytd);
-    expect(rows.map((r) => r.label)).toEqual(['School meals', 'Library visits', 'Books checked out', 'Mentorship classes', 'Program attendances']);
+    expect(rows.map((r) => r.label)).toEqual(['School meals', 'Library visits', 'Books checked out', 'Contact hours', 'Program attendances']);
     expect(changesTakeaway(rows)).toMatch(/last year/);
     expect(changesTakeaway(rows.map((r) => ({ ...r, change: null })))).toBe('Not enough reports from last year to compare yet');
     expect(changesTakeaway([{ label: 'A', change: 0.1, total: 1 }, { label: 'B', change: -0.2, total: 1 }])).toBe('A up 10% on last year; b down 20%');

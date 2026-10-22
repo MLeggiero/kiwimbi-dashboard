@@ -160,10 +160,11 @@ describe('runPipeline', () => {
       ]),
       opts,
     );
-    expect(r.facts.map((f) => [f.m, f.s, f.e, f.a ?? 0])).toEqual([
-      ['classes_primary', '2026-03-23', '2026-03-27', 0],
-      ['classes_secondary', '2026-03-23', '2026-03-27', 1],
-      ['classes_primary', '2026-03-20', '2026-03-20', 1],
+    // Old lesson counts become estimated classroom hours (40 minutes a lesson).
+    expect(r.facts.map((f) => [f.m, f.s, f.e, f.a ?? 0, f.est ?? 0, Math.round(f.v * 60)])).toEqual([
+      ['contact_classroom', '2026-03-23', '2026-03-27', 0, 1, 160],
+      ['contact_classroom', '2026-03-23', '2026-03-27', 1, 1, 80],
+      ['contact_classroom', '2026-03-20', '2026-03-20', 1, 1, 200],
     ]);
     expect(r.issues.map((i) => [i.row, i.type, i.excluded])).toEqual([
       [2, 'assumed_dates', false],
@@ -288,7 +289,7 @@ describe('payloads', () => {
   it('sends viewers only the allowed fields: no names, ids, row numbers, links or raw text', () => {
     const p = toPublicPayload(clean, viewer, '2026-09-23');
     expect(Object.keys(p).sort()).toEqual(['facts', 'generatedAt', 'latestSubmission', 'mentors', 'quality', 'targets', 'terms', 'timezone', 'today', 'version', 'viewer']);
-    for (const f of p.facts) for (const k of Object.keys(f)) expect(['m', 's', 'e', 'v', 't', 'a']).toContain(k);
+    for (const f of p.facts) for (const k of Object.keys(f)) expect(['m', 's', 'e', 'v', 't', 'a', 'est', 'loc', 'sch', 'site', 'lvl']).toContain(k);
     expect(p.quality).toBeNull();
     expect(Object.keys(p.viewer).sort()).toEqual(['email', 'isManager']);
     const json = JSON.stringify(p);
@@ -311,7 +312,7 @@ describe('payloads', () => {
 
   it('pre-counts distinct mentors per week, month, term and preset range', () => {
     const p = toPublicPayload(clean, viewer, '2026-09-23');
-    const mentorFacts = clean.facts.filter((f) => f.m.startsWith('classes_'));
+    const mentorFacts = clean.facts.filter((f) => f.m.startsWith('contact_'));
     const distinct = (from: string, to: string) => new Set(mentorFacts.filter((f) => f.e >= from && f.s <= to).map((f) => f.r)).size;
     expect(p.mentors.week['2026-09-07']).toBe(distinct('2026-09-07', '2026-09-13'));
     expect(p.mentors.month['2026-03']).toBe(distinct('2026-03-01', '2026-03-31'));

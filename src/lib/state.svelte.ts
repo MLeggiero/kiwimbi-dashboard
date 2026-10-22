@@ -16,7 +16,7 @@ export const PAGES: { id: PageId; label: string; icon: string }[] = [
   { id: 'overview', label: 'Overview', icon: 'home' },
   { id: 'meals', label: 'Meals', icon: 'plate' },
   { id: 'library', label: 'Library', icon: 'book' },
-  { id: 'mentorship', label: 'Mentorship', icon: 'school' },
+  { id: 'mentorship', label: 'Teaching & Mentoring', icon: 'school' },
   { id: 'programs', label: 'Programs', icon: 'spark' },
   { id: 'health', label: 'Data health', icon: 'grid' },
 ];

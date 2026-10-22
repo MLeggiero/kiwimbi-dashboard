@@ -8,7 +8,10 @@
   import { DATA_NOTICE, LIBRARY, LOGO, MEALS, MENTORING, MISSION, PHOTOS, PROGRAM_COPY, PROGRAMS, SCHOOLS_SENTENCE } from '../content';
   import { fmtInt, fmtOne } from '../lib/format';
   import { aggregate, autoGranularity, makeBuckets, type Bucket } from '../lib/series';
+  import { mixHex } from '../charts/common';
+  import { reportedKey } from '../lib/dataset';
   import { app } from '../lib/state.svelte';
+  import { EST_CLASSROOM } from '../lib/teaching';
   import { buildStory } from '../lib/story';
   import PrintBars from './PrintBars.svelte';
   import PrintHBars from './PrintHBars.svelte';
@@ -46,7 +49,7 @@
       { value: story.meals.total, label: 'lunches served', note: story.meals.perSchoolDay ? `About ${fmtInt(story.meals.perSchoolDay)} a school day` : '', color: C.lunch },
       { value: story.visits.total, label: 'library visits', note: story.visits.perSchoolDay ? `About ${fmtInt(story.visits.perSchoolDay)} a school day` : '', color: C.water },
       { value: story.books.total, label: 'books borrowed', note: ratioText ? `${ratioText[0].toUpperCase()}${ratioText.slice(1)}` : '', color: C.coral },
-      { value: story.classes.total, label: 'classes taught', note: story.classes.total ? `${fmtInt(story.primary)} primary, ${fmtInt(story.secondary)} secondary` : '', color: C.leaf },
+      { value: story.hours.total, label: 'contact hours', note: story.hours.total ? `${fmtInt(story.classroom)} classroom, ${fmtInt(story.mentorship)} mentorship` : '', color: C.leaf },
       { value: attendances || null, label: 'program attendances', note: running.length ? `Across ${running.length} skills program${running.length === 1 ? '' : 's'}` : '', color: C.teal },
     ].filter((x) => x.value !== null),
   );
@@ -60,8 +63,10 @@
   );
   const lunchesWeekly = $derived(values(MEAL_SCHOOLS));
   const visitsWeekly = $derived(values(['library_visits']));
-  const primaryWeekly = $derived(values(['classes_primary']));
-  const secondaryWeekly = $derived(values(['classes_secondary']));
+  const classroomWeekly = $derived(values([reportedKey('contact_classroom')]));
+  const estimatedWeekly = $derived(values([EST_CLASSROOM]));
+  const mentorshipWeekly = $derived(values(['contact_mentorship']));
+  const estColor = mixHex(C.leaf, '#ffffff', 0.55);
 </script>
 
 <article class="print-report" aria-label="Printable impact report">
@@ -78,7 +83,7 @@
 
   {#if numbers.length}
     <p class="lead">
-      {when}, Kiwimbi’s programs {#if story.meals.total}served <strong>{fmtInt(story.meals.total)}</strong> school lunches{/if}{#if story.visits.total}{story.meals.total ? ', ' : ''}welcomed <strong>{fmtInt(story.visits.total)}</strong> library visits{/if}{#if story.classes.total}{story.meals.total || story.visits.total ? ' and ' : ''}taught <strong>{fmtInt(story.classes.total)}</strong> small-group classes{/if}.
+      {when}, Kiwimbi’s programs {#if story.meals.total}served <strong>{fmtInt(story.meals.total)}</strong> school lunches{/if}{#if story.visits.total}{story.meals.total ? ', ' : ''}welcomed <strong>{fmtInt(story.visits.total)}</strong> library visits{/if}{#if story.hours.total}{story.meals.total || story.visits.total ? ' and ' : ''}spent <strong>{fmtInt(story.hours.total)}</strong> contact hours teaching and mentoring{/if}.
     </p>
     <div class="numbers">
       {#each numbers as n (n.label)}
@@ -115,19 +120,25 @@
     </section>
   {/if}
 
-  {#if story.classes.total}
+  {#if story.hours.total}
     <section>
       <h2><span class="dot" style:background={C.leaf}></span>{MENTORING.title}</h2>
       <p>{MENTORING.body}</p>
-      <h3>Classes each {word} <span class="key"><span class="sw" style:background={C.leaf}></span>Primary <span class="sw" style:background={C.teal}></span>Secondary</span></h3>
+      <h3>
+        Contact hours each {word}
+        <span class="key"
+          ><span class="sw" style:background={C.leaf}></span>Classroom {#if story.estimated}<span class="sw" style:background={estColor}></span>Estimated from lesson counts {/if}<span class="sw" style:background={C.teal}></span>Mentorship</span
+        >
+      </h3>
       <PrintBars
         series={[
-          { name: 'Primary', color: C.leaf, values: primaryWeekly },
-          { name: 'Secondary', color: C.teal, values: secondaryWeekly },
+          { name: 'Classroom', color: C.leaf, values: classroomWeekly },
+          ...(story.estimated ? [{ name: 'Classroom, estimated from lesson counts', color: estColor, values: estimatedWeekly }] : []),
+          { name: 'Mentorship', color: C.teal, values: mentorshipWeekly },
         ]}
         {labels}
         period={word}
-        label="Classes taught each {word}, primary and secondary"
+        label="Contact hours each {word}, classroom and mentorship"
         height={130}
       />
     </section>

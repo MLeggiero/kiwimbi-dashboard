@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { CLASS_METRICS, ENRICHMENT, MEAL_SCHOOLS } from '../../shared/metrics';
+  import { ENRICHMENT, MEAL_SCHOOLS, TEACHING_METRICS } from '../../shared/metrics';
   import type { MetricId } from '../../shared/types';
   import { buildCalendar, type CalendarMode } from '../charts/calendar';
   import { buildChangeBars } from '../charts/manager';
@@ -14,14 +14,15 @@
   import { weekInsights } from '../lib/insights';
   import { changesTakeaway, headlineChanges, reportingGrid } from '../lib/manager';
   import { app } from '../lib/state.svelte';
+  import { booksHint } from '../lib/library';
 
   const ctx = $derived.by(currentView);
   const meals = $derived(kpi(ctx, MEAL_SCHOOLS));
   const perDay = $derived(meals.stats.coveredWeekdays ? meals.stats.total / meals.stats.coveredWeekdays : null);
   const tiles = $derived([
     { label: 'Library visits', k: kpi(ctx, ['library_visits']), color: ctx.theme.series[2] },
-    { label: 'Books checked out', k: kpi(ctx, ['books_checked_out']), color: ctx.theme.series[1] },
-    { label: 'Mentorship classes', k: kpi(ctx, CLASS_METRICS), color: ctx.theme.series[0] },
+    { label: 'Books checked out', k: kpi(ctx, ['books_checked_out']), color: ctx.theme.series[1], hint: booksHint(ctx) },
+    { label: 'Contact hours', k: kpi(ctx, TEACHING_METRICS), color: ctx.theme.series[0] },
     { label: 'Program attendances', k: kpi(ctx, ENRICHMENT), color: ctx.theme.series[4] },
   ]);
   const insights = $derived(weekInsights(ctx.ds));
@@ -30,11 +31,11 @@
   const changeChart = $derived(buildChangeBars(changes, ctx.theme));
   const reporting = $derived(reportingGrid(ctx.ds));
 
-  let calChoice = $state<'streams' | 'meals' | 'library' | 'classes'>('streams');
-  const CAL: Record<'meals' | 'library' | 'classes', { metrics: MetricId[]; unit: string }> = {
+  let calChoice = $state<'streams' | 'meals' | 'library' | 'hours'>('streams');
+  const CAL: Record<'meals' | 'library' | 'hours', { metrics: MetricId[]; unit: string }> = {
     meals: { metrics: MEAL_SCHOOLS, unit: 'school meals' },
     library: { metrics: ['library_visits'], unit: 'library visits' },
-    classes: { metrics: CLASS_METRICS, unit: 'classes' },
+    hours: { metrics: TEACHING_METRICS, unit: 'contact hours' },
   };
   const calendar = $derived(buildCalendar(ctx, (calChoice === 'streams' ? 'streams' : CAL[calChoice]) as CalendarMode));
 </script>
@@ -56,7 +57,7 @@
 
 <div class="grid kpis" style="margin-top:16px">
   {#each tiles as t (t.label)}
-    <StatTile label={t.label} value={t.k.value} delta={t.k.delta} deltaLabel={deltaLabel(ctx)} spark={t.k.spark} color={t.color} sub={t.k.value === null ? 'No reports in this range' : undefined} />
+    <StatTile label={t.label} value={t.k.value} delta={t.k.delta} deltaLabel={deltaLabel(ctx)} basis={t.k.basis} hint={t.hint} spark={t.k.spark} color={t.color} sub={t.k.value === null ? 'No reports in this range' : undefined} />
   {/each}
 </div>
 
@@ -78,7 +79,7 @@
         <option value="streams">Programs reporting</option>
         <option value="meals">Meals</option>
         <option value="library">Library visits</option>
-        <option value="classes">Mentorship classes</option>
+        <option value="hours">Contact hours</option>
       </select>
     {/snippet}
     <EChart option={calendar.option} height={170} label={calendar.summary} />

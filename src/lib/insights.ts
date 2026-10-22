@@ -1,9 +1,10 @@
-import { CLASS_METRICS, ENRICHMENT, MEAL_SCHOOLS, METRIC_BY_ID } from '../../shared/metrics';
+import { ENRICHMENT, MEAL_SCHOOLS, METRIC_BY_ID, TEACHING_METRICS } from '../../shared/metrics';
 import { dayParts, fmtDayShort, startOfWeek, startOfYear } from '../../shared/dates';
 import type { MetricId } from '../../shared/types';
-import type { Dataset } from './dataset';
+import type { Dataset, SeriesKey } from './dataset';
 import { fmtInt } from './format';
 import { aggregate, makeBuckets, rangeStats } from './series';
+import { EST_CLASSROOM, likeForLike } from './teaching';
 
 export interface Insight {
   tone: 'good' | 'warn' | 'neutral';
@@ -11,12 +12,20 @@ export interface Insight {
   text: string;
 }
 
-const GROUPS: { label: string; metrics: MetricId[] }[] = [
+const GROUPS: { label: string; metrics: SeriesKey[]; detail?: (ds: Dataset, from: number, to: number) => string }[] = [
   { label: 'School meals', metrics: MEAL_SCHOOLS },
   { label: 'Library visits', metrics: ['library_visits'] },
-  { label: 'Classes taught', metrics: CLASS_METRICS },
+  { label: 'Contact hours', metrics: TEACHING_METRICS, detail: teachingDetail },
   { label: 'Program attendances', metrics: ENRICHMENT },
 ];
+
+/** " (classroom 610, mentorship 540)", or a note that the hours are estimated from lesson counts. */
+function teachingDetail(ds: Dataset, from: number, to: number): string {
+  const est = rangeStats(ds, [EST_CLASSROOM], from, to);
+  const mentorship = rangeStats(ds, ['contact_mentorship'], from, to);
+  if (est.coveredDays && !mentorship.coveredDays) return ' (estimated from lesson counts)';
+  return ` (classroom ${fmtInt(rangeStats(ds, ['contact_classroom'], from, to).total)}, mentorship ${fmtInt(mentorship.total)})`;
+}
 
 const inTerm = (ds: Dataset, day: number) => !ds.terms.length || ds.terms.some((t) => day >= t.start && day <= t.end);
 
@@ -28,16 +37,20 @@ export function weekInsights(ds: Dataset): Insight[] {
   for (const g of GROUPS) {
     const cur = rangeStats(ds, g.metrics, week, week + 6);
     if (!cur.coveredDays) continue;
-    const prior = aggregate(ds, g.metrics, before).values.filter((v): v is number => v !== null);
-    const avg = prior.length ? prior.reduce((a, b) => a + b, 0) / prior.length : null;
-    let text = `${g.label}: ${fmtInt(cur.total)} in the week of ${fmtDayShort(week)}`;
+    // Across the switch from lesson counts, contact hours compare classroom hours only.
+    const like = likeForLike(ds, g.metrics, [week, week + 6], [week - 28, week - 1]);
+    const prior = aggregate(ds, like.keys, before).values.filter((v): v is number => v !== null);
+    const avg = like.basis !== 'new' && prior.length ? prior.reduce((a, b) => a + b, 0) / prior.length : null;
+    const now = like.basis === 'all' ? cur.total : rangeStats(ds, like.keys, week, week + 6).total;
+    const what = like.basis === 'classroom' ? 'classroom hours ' : '';
+    let text = `${g.label}: ${fmtInt(cur.total)} in the week of ${fmtDayShort(week)}${g.detail?.(ds, week, week + 6) ?? ''}`;
     let icon = 'minus';
     if (avg && avg > 0) {
-      const pct = Math.round(((cur.total - avg) / avg) * 100);
+      const pct = Math.round(((now - avg) / avg) * 100);
       if (Math.abs(pct) >= 3) {
-        text += `, ${pct > 0 ? 'up' : 'down'} ${Math.abs(pct)}% on the 4-week average`;
+        text += `, ${what}${pct > 0 ? 'up' : 'down'} ${Math.abs(pct)}% on the 4-week average`;
         icon = pct > 0 ? 'arrow-up' : 'arrow-down';
-      } else text += ', in line with the 4-week average';
+      } else text += `, ${what}in line with the 4-week average`;
     }
     out.push({ tone: 'neutral', icon, text: `${text}.` });
   }
@@ -55,10 +68,10 @@ export function weekInsights(ds: Dataset): Insight[] {
   return out.slice(0, 6);
 }
 
-const THRESHOLDS: { metrics: MetricId[]; unit: string; steps: number[] }[] = [
+const THRESHOLDS: { metrics: SeriesKey[]; unit: string; steps: number[] }[] = [
   { metrics: MEAL_SCHOOLS, unit: 'school meals served', steps: [10_000, 25_000, 50_000, 75_000, 100_000, 150_000, 200_000, 300_000] },
   { metrics: ['books_checked_out'], unit: 'books checked out', steps: [2_500, 5_000, 10_000, 20_000, 40_000] },
-  { metrics: CLASS_METRICS, unit: 'mentorship classes taught', steps: [500, 1_000, 2_000, 5_000, 10_000] },
+  { metrics: TEACHING_METRICS, unit: 'contact hours of teaching and mentoring', steps: [1_000, 2_500, 5_000, 10_000, 25_000, 50_000] },
 ];
 
 /** Round-number milestones crossed so far this year (highest per metric). */

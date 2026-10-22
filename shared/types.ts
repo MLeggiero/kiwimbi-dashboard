@@ -8,8 +8,9 @@ export type MetricId =
   | 'meals_staff_tailoring'
   | 'library_visits'
   | 'books_checked_out'
-  | 'classes_primary'
-  | 'classes_secondary'
+  | 'library_lessons'
+  | 'contact_classroom'
+  | 'contact_mentorship'
   | 'sports'
   | 'art'
   | 'tailoring'
@@ -42,6 +43,12 @@ export interface MetricDef {
   scope: 'site' | 'reporter';
 }
 
+/** Where books were checked out (from the split on 2026-10-22). No location = not split (earlier reports). */
+export type BookLocation = 'main' | 'satellite' | 'outreach' | 'klc';
+
+/** School level in a teaching header, e.g. "Kidek Junior Secondary". */
+export type TeachingLevel = 'Primary' | 'Junior Secondary' | 'Secondary';
+
 /** One reported number for one metric over a date range. */
 export interface Fact {
   m: MetricId;
@@ -54,6 +61,14 @@ export interface Fact {
   r?: string;
   /** 1 when a date was missing and had to be assumed. */
   a?: 1;
+  /** 1 when the value is estimated (classroom hours converted from old lesson counts). */
+  est?: 1;
+  /** Books: where they were checked out. */
+  loc?: BookLocation;
+  /** Teaching: the school label from the header ("Kidek Junior Secondary"), its site and its level. */
+  sch?: string;
+  site?: string;
+  lvl?: TeachingLevel;
 }
 
 export type IssueType =
@@ -70,6 +85,9 @@ export type IssueType =
   | 'overlap'
   | 'missing_column'
   | 'unmapped_column'
+  | 'header_format'
+  | 'high_hours'
+  | 'mixed_teaching'
   | 'settings';
 
 export interface Issue {

@@ -1,9 +1,9 @@
 import { countWeekdays, fmtRange, shiftMonths, shiftYears } from '../../shared/dates';
 import { METRIC_BY_ID } from '../../shared/metrics';
-import type { MetricId } from '../../shared/types';
-import type { Dataset } from './dataset';
+import { baseMetric, type Dataset, type SeriesKey } from './dataset';
 import { presetRange } from './presets';
 import { compareRange, pctChange, rangeStats, type Granularity, type RangeStats } from './series';
+import { likeForLike, type Basis } from './teaching';
 
 // Comparisons in the managers' view: period A against period B. A can be the chart's whole
 // date range (then B is drawn over the chart bucket by bucket) or any stretch of its own,
@@ -107,26 +107,34 @@ export interface MetricComparison {
   bRate: number | null;
   /** Change in totals (same lengths) or in daily averages; null when unfair to compare. */
   change: number | null;
+  /** What the change compares (contact hours across the switch from lesson counts: classroom only). */
+  basis: Basis;
 }
 
 const activeDaysIn = (p: Period, weekdays: boolean) => (weekdays ? countWeekdays(p.from, p.to) : p.days);
 
-export function compareMetrics(ds: Dataset, metrics: MetricId[], c: Comparison): MetricComparison {
-  const weekdays = METRIC_BY_ID[metrics[0]]?.activeDays !== 'all';
+export function compareMetrics(ds: Dataset, metrics: readonly SeriesKey[], c: Comparison): MetricComparison {
+  const weekdays = METRIC_BY_ID[baseMetric(metrics[0])]?.activeDays !== 'all';
   const a = rangeStats(ds, metrics, c.a.from, c.a.to);
   const b = rangeStats(ds, metrics, c.b.from, c.b.to);
-  const rate = (st: RangeStats, p: Period) => {
-    const n = activeDaysIn(p, weekdays);
-    return st.coveredDays && n ? st.total / n : null;
-  };
-  const aRate = rate(a, c.a);
-  const bRate = rate(b, c.b);
+  const like = likeForLike(ds, metrics, [c.a.from, c.a.to], [c.b.from, c.b.to]);
+  if (like.basis !== 'all') {
+    const same = like.basis === 'new' ? null : compareMetrics(ds, like.keys, c);
+    return { a, b, aRate: rate(a, c.a, weekdays), bRate: rate(b, c.b, weekdays), change: same?.change ?? null, basis: like.basis };
+  }
+  const aRate = rate(a, c.a, weekdays);
+  const bRate = rate(b, c.b, weekdays);
   let change: number | null;
   if (c.sameLength) change = pctChange(a, b);
   else if (aRate === null || bRate === null || bRate <= 0) change = null;
   // Same fairness rule as pctChange, on the share of each period with reports.
   else change = b.coveredDays / b.days < 0.5 * (a.coveredDays / a.days) ? null : aRate / bRate - 1;
-  return { a, b, aRate, bRate, change };
+  return { a, b, aRate, bRate, change, basis: 'all' };
+}
+
+function rate(st: RangeStats, p: Period, weekdays: boolean): number | null {
+  const n = activeDaysIn(p, weekdays);
+  return st.coveredDays && n ? st.total / n : null;
 }
 
 /** "4 weeks", "31 days", "1 day". */

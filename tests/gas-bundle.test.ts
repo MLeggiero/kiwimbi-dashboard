@@ -151,7 +151,7 @@ describe('Apps Script bundle', () => {
     expect(payload.facts.length).toBeGreaterThan(300);
     expect(payload.today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     for (const leak of ['Mentor Amani', 'Meals Lead', 'drive.google.com', 'example.invalid', 'about 4', '"row"', '"r"', 'detail']) expect(json).not.toContain(leak);
-    for (const f of payload.facts) for (const k of Object.keys(f)) expect(['m', 's', 'e', 'v', 't', 'a']).toContain(k);
+    for (const f of payload.facts) for (const k of Object.keys(f)) expect(['m', 's', 'e', 'v', 't', 'a', 'est', 'loc', 'sch', 'site', 'lvl']).toContain(k);
     expect(Object.keys(payload.mentors.week).length).toBeGreaterThan(10);
     expect(payload.quality).toBeNull();
     expect(payload.facts.some((f: { m: string }) => f.m === 'meals_staff_tailoring')).toBe(false);

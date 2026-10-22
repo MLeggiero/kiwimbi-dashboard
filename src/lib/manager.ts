@@ -1,10 +1,11 @@
-import { CLASS_METRICS, ENRICHMENT, MEAL_SCHOOLS, METRIC_BY_ID, STREAMS } from '../../shared/metrics';
+import { ENRICHMENT, MEAL_SCHOOLS, METRIC_BY_ID, STREAMS, TEACHING_METRICS } from '../../shared/metrics';
 import { isoToDay } from '../../shared/dates';
 import type { MetricId } from '../../shared/types';
 import type { Dataset } from './dataset';
-import { lastActivityOf } from './dataset';
+import { lastActivityOf, MAIN_BOOKS, schoolKey, type SeriesKey } from './dataset';
 import { fmtInt, fmtOne } from './format';
 import { aggregate, makeBuckets, pctChange, rangeStats, typicalWeekly, type Bucket } from './series';
+import { likeForLike } from './teaching';
 import type { ViewContext } from './view';
 
 // The managers' dashboard: a few explanatory charts per page, each with a one-line
@@ -14,13 +15,18 @@ const pct = (c: number) => `${Math.round(Math.abs(c) * 100)}%`;
 const sameStretchLastYear = (ctx: ViewContext) => (ctx.cmp && ctx.compare === 'yoy' ? ctx.cmp : { from: shiftBack(ctx.from), to: shiftBack(ctx.to) });
 const shiftBack = (d: number) => d - 364;
 
-/** Change against the same weeks a year earlier (52 weeks back, so weekdays line up); null unless fair. */
-export function yearChange(ds: Dataset, metrics: MetricId[], from: number, to: number): number | null {
-  return pctChange(rangeStats(ds, metrics, from, to), rangeStats(ds, metrics, shiftBack(from), shiftBack(to)));
+/**
+ * Change against the same weeks a year earlier (52 weeks back, so weekdays line up); null
+ * unless fair. Contact hours compare like for like across the switch from lesson counts.
+ */
+export function yearChange(ds: Dataset, metrics: SeriesKey[], from: number, to: number): number | null {
+  const like = likeForLike(ds, metrics, [from, to], [shiftBack(from), shiftBack(to)]);
+  if (like.basis === 'new') return null;
+  return pctChange(rangeStats(ds, like.keys, from, to), rangeStats(ds, like.keys, shiftBack(from), shiftBack(to)));
 }
 
 /** "About 1,900 school meals a week": the average of complete periods with reports. */
-export function typicalPeriod(ctx: ViewContext, metrics: MetricId[]): number | null {
+export function typicalPeriod(ctx: ViewContext, metrics: SeriesKey[]): number | null {
   const lagStart = ctx.ds.today - 13;
   const vals = aggregate(ctx.ds, metrics, ctx.buckets).values.filter((v, i): v is number => v !== null && !ctx.buckets[i].partial && ctx.buckets[i].end < lagStart);
   return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
@@ -40,7 +46,7 @@ const HEADLINES: { label: string; metrics: MetricId[] }[] = [
   { label: 'School meals', metrics: MEAL_SCHOOLS },
   { label: 'Library visits', metrics: ['library_visits'] },
   { label: 'Books checked out', metrics: ['books_checked_out'] },
-  { label: 'Mentorship classes', metrics: CLASS_METRICS },
+  { label: 'Contact hours', metrics: TEACHING_METRICS },
   { label: 'Program attendances', metrics: ENRICHMENT },
 ];
 
@@ -64,6 +70,8 @@ export function changesTakeaway(rows: ChangeRow[]): string {
 
 export interface GridRow {
   label: string;
+  /** A sub-row (one school under Teaching & Mentoring). */
+  indent?: boolean;
   /** Per column: value (null = no reports). */
   cells: (number | null)[];
   note?: string;
@@ -73,9 +81,17 @@ export interface GridRow {
 export function reportingGrid(ds: Dataset): { weeks: Bucket[]; rows: GridRow[]; takeaway: string } {
   const end = ds.today;
   const weeks = makeBuckets(Math.max(end - 7 * 11, ds.firstDay), end, 'week', []);
-  const rows: GridRow[] = STREAMS.map((s) => {
-    const last = lastActivityOf(ds, s.metrics);
-    return { label: s.label, cells: aggregate(ds, s.metrics, weeks).values, note: last === null ? 'never' : `${Math.max(0, ds.today - last)} d ago` };
+  const ago = (last: number | null | undefined) => (last === null || last === undefined ? 'never' : `${Math.max(0, ds.today - last)} d ago`);
+  const rows: GridRow[] = STREAMS.flatMap((s) => {
+    const row: GridRow = { label: s.label, cells: aggregate(ds, s.metrics, weeks).values, note: ago(lastActivityOf(ds, s.metrics)) };
+    if (s.id !== 'mentorship') return [row];
+    // Each school reports its own contact hours, so each gets its own row and last report.
+    const schools = ds.schools.map((sc): GridRow => {
+      const keys = TEACHING_METRICS.map((m) => schoolKey(m, sc.label));
+      const last = Math.max(...keys.map((k) => ds.lastByKey[k] ?? -Infinity));
+      return { label: sc.label, indent: true, cells: aggregate(ds, keys, weeks).values, note: ago(Number.isFinite(last) ? last : null) };
+    });
+    return [row, ...schools];
   });
   const regular = rows.filter((r) => !/Holiday|Agronomy/.test(r.label));
   const quiet = regular.filter((r) => r.cells.slice(-3).every((v) => v === null)).map((r) => r.label.toLowerCase());
@@ -118,7 +134,7 @@ export function schoolsTakeaway(rows: SchoolRow[]): string {
 // ------------------------------------------------------------------ running totals
 
 /** "18% ahead of last year, and 3% ahead of the 90,000 target pace". */
-export function raceTakeaway(ctx: ViewContext, metrics: MetricId[], noun: string, target: { value: number; year: number } | null): string {
+export function raceTakeaway(ctx: ViewContext, metrics: SeriesKey[], noun: string, target: { value: number; year: number } | null): string {
   const c = yearChange(ctx.ds, metrics, ctx.from, ctx.to);
   const total = rangeStats(ctx.ds, metrics, ctx.from, ctx.to).total;
   let text = c === null ? `${fmtInt(total)} ${noun} so far` : Math.abs(c) < 0.02 ? `Level with last year at ${fmtInt(total)} ${noun}` : `${pct(c)} ${c > 0 ? 'ahead of' : 'behind'} last year, at ${fmtInt(total)} ${noun}`;
@@ -181,13 +197,14 @@ export function libraryTakeaway(ctx: ViewContext): string {
 }
 
 export function ratioTakeaway(ctx: ViewContext): string {
+  // Visits are counted at the main library, so books per visit uses its books only.
   const v = rangeStats(ctx.ds, ['library_visits'], ctx.from, ctx.to).total;
-  const b = rangeStats(ctx.ds, ['books_checked_out'], ctx.from, ctx.to).total;
+  const b = rangeStats(ctx.ds, MAIN_BOOKS, ctx.from, ctx.to).total;
   if (!v) return 'Books per visit';
   const r = b / v;
   const prev = sameStretchLastYear(ctx);
   const pv = rangeStats(ctx.ds, ['library_visits'], prev.from, prev.to).total;
-  const pb = rangeStats(ctx.ds, ['books_checked_out'], prev.from, prev.to).total;
+  const pb = rangeStats(ctx.ds, MAIN_BOOKS, prev.from, prev.to).total;
   const base = r >= 1 ? `Readers borrow about ${fmtOne(r)} books per visit` : `Readers borrow about one book for every ${Math.round(1 / r)} visits`;
   if (!pv || !pb) return base;
   const was = pb / pv;

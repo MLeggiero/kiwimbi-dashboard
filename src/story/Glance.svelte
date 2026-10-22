@@ -19,7 +19,7 @@
     if (story.books.total === null) return none;
     return r === null || r <= 0 ? '' : r >= 1 ? `${fmtOne(r)} per visit.` : `One for every ${Math.round(1 / r)} visits.`;
   });
-  const classesText = $derived(story.classes.total === null ? none : story.classesPerWeek ? `About ${fmtInt(story.classesPerWeek)} a school week.` : '');
+  const hoursText = $derived(story.hours.total === null ? none : story.hoursPerWeek ? `About ${fmtInt(story.hoursPerWeek)} a school week.` : '');
 </script>
 
 <section class="glance" aria-labelledby="glance-title">
@@ -35,7 +35,7 @@
       <Stat value={value(story.meals.total)} label="lunches served" text={mealsText} color="var(--earth-deep)" rule="var(--sun)" />
       <Stat value={value(story.visits.total)} label="library visits" text={visitsText} color="var(--water-deep)" rule="var(--water)" />
       <Stat value={value(story.books.total)} label="books borrowed" text={booksText} color="var(--coral-deep)" rule="var(--coral)" />
-      <Stat value={value(story.classes.total)} label="classes taught" text={classesText} color="var(--leaf-deep)" rule="var(--leaf)" />
+      <Stat value={value(story.hours.total)} label="contact hours" text={hoursText} color="var(--leaf-deep)" rule="var(--leaf)" />
     </div>
   </div>
 </section>

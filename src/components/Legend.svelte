@@ -54,6 +54,9 @@
     border-top: 2px solid var(--c);
     background: color-mix(in srgb, var(--c) 18%, transparent);
   }
+  .key.estimated {
+    border: 1px dashed var(--ink-3);
+  }
   .key.span {
     width: 14px;
     height: 12px;

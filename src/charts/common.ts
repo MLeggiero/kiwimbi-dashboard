@@ -8,7 +8,7 @@ import type { ViewContext } from '../lib/view';
 export interface LegendItem {
   label: string;
   color: string;
-  kind: 'bar' | 'line' | 'area' | 'ghost' | 'target' | 'holiday' | 'hatch' | 'provisional' | 'span';
+  kind: 'bar' | 'line' | 'area' | 'ghost' | 'target' | 'holiday' | 'hatch' | 'provisional' | 'span' | 'estimated';
 }
 
 export const reducedMotion = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -31,6 +31,14 @@ export function mixHex(a: string, b: string, t: number): string {
   if (!x || !y) return a;
   return `#${x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('')}`;
 }
+
+/** Label for values estimated from old lesson counts, used in every legend. */
+export const ESTIMATED_LABEL = 'Estimated from lesson counts';
+
+/** The one style for estimated values: a lighter fill of the series color with a dashed edge. */
+export const estimatedColor = (color: string, theme: ChartTheme) => mixHex(color, theme.card, theme.dark ? 0.5 : 0.55);
+export const estimatedItemStyle = (color: string, theme: ChartTheme) => ({ color: estimatedColor(color, theme), borderColor: color, borderWidth: 1, borderType: [3, 2] });
+export const estimatedLegend = (color: string, theme: ChartTheme): LegendItem => ({ label: ESTIMATED_LABEL, color: estimatedColor(color, theme), kind: 'estimated' });
 
 /** A seamless 45° hatch tile used to mark periods with no reports. */
 export function hatchPattern(color: string) {

@@ -1,6 +1,7 @@
 import { dayParts, fmtRange, startOfWeek, startOfYear } from '../../shared/dates';
-import type { MetricId } from '../../shared/types';
 import { compareMetrics } from './compare';
+import type { SeriesKey } from './dataset';
+import type { Basis } from './teaching';
 import { lastWeeks, rangeStats, type RangeStats } from './series';
 import { app } from './state.svelte';
 import { readChartTheme, themeState } from './theme.svelte';
@@ -29,17 +30,21 @@ export interface Kpi {
   value: number | null;
   stats: RangeStats;
   delta: number | null;
+  /** What the change compares (see likeForLike). */
+  basis: Basis;
   spark: (number | null)[];
 }
 
-export function kpi(ctx: ViewContext, metrics: MetricId[]): Kpi {
+export function kpi(ctx: ViewContext, metrics: SeriesKey[]): Kpi {
   const stats = rangeStats(ctx.ds, metrics, ctx.from, ctx.to);
   // Tiles show the chart's dates, so they carry a change only when period A is those dates.
   const c = ctx.comparison?.whole ? ctx.comparison : null;
+  const m = c ? compareMetrics(ctx.ds, metrics, c) : null;
   return {
     value: stats.coveredDays ? stats.total : null,
     stats,
-    delta: c ? compareMetrics(ctx.ds, metrics, c).change : null,
+    delta: m?.change ?? null,
+    basis: m?.basis ?? 'all',
     spark: lastWeeks(ctx.ds, metrics, sparkEnd(ctx), 12),
   };
 }

@@ -1,5 +1,5 @@
 import { dayParts, fmtDayShort, monthName } from '../../shared/dates';
-import type { MetricId } from '../../shared/types';
+import type { SeriesKey } from '../lib/dataset';
 import type { Dataset } from '../lib/dataset';
 import type { EChartsCoreOption } from '../lib/echarts';
 import { fmtCompact, fmtInt } from '../lib/format';
@@ -63,7 +63,7 @@ export interface ColumnsInput {
   ds: Dataset;
   period: StoryPeriod;
   theme: ChartTheme;
-  series: { name: string; color: string; metrics: MetricId[] }[];
+  series: { name: string; color: string; metrics: SeriesKey[] }[];
   /** Plural noun for tooltips and the average label: "lunches". */
   unit: string;
   /** Write the average week (or month) on the chart. Small charts leave it out. */
@@ -153,7 +153,7 @@ export interface RaceInput {
   ds: Dataset;
   period: StoryPeriod;
   theme: ChartTheme;
-  metrics: MetricId[];
+  metrics: SeriesKey[];
   color: string;
   unit: string;
 }
@@ -174,7 +174,7 @@ export function buildRace({ ds, period, theme, metrics, color, unit }: RaceInput
     for (; d <= b.end; d++) {
       const i = d - ds.origin;
       if (i < 0 || i >= ds.length) continue;
-      for (const m of metrics) run += ds.daily[m].values[i];
+      for (const m of metrics) run += ds.daily[m]?.values[i] ?? 0;
     }
     running.push(run);
   }

@@ -28,6 +28,9 @@
     overlap: 'Overlapping dates',
     missing_column: 'Missing column',
     unmapped_column: 'Unused column',
+    header_format: 'Header not understood',
+    high_hours: 'Hours worth a look',
+    mixed_teaching: 'Lessons and hours together',
     settings: 'Settings tab',
   };
 

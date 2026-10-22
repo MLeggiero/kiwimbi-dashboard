@@ -1,11 +1,13 @@
 <script lang="ts">
+  import { estimatedColor } from '../charts/common';
   import { buildColumns } from '../charts/story';
   import EChart from '../components/EChart.svelte';
   import { MENTORING, PHOTOS } from '../content';
-  import type { Dataset } from '../lib/dataset';
+  import { reportedKey, type Dataset } from '../lib/dataset';
   import { fmtInt } from '../lib/format';
   import { autoGranularity } from '../lib/series';
   import type { Story } from '../lib/story';
+  import { EST_CLASSROOM } from '../lib/teaching';
   import type { ChartTheme } from '../lib/theme.svelte';
   import Chapter from './Chapter.svelte';
   import Stat from './Stat.svelte';
@@ -13,18 +15,20 @@
   let { story, ds, theme }: { story: Story; ds: Dataset; theme: ChartTheme } = $props();
   const p = $derived(story.period);
   const word = $derived(autoGranularity(p.from, p.to) === 'week' ? 'week' : 'month');
-  const primaryColor = $derived(theme.series[0]);
-  const secondaryColor = $derived(theme.series[4]);
+  const classroomColor = $derived(theme.series[0]);
+  const mentorshipColor = $derived(theme.series[4]);
+  const estColor = $derived(estimatedColor(classroomColor, theme));
   const chart = $derived(
     buildColumns({
       ds,
       period: p,
       theme,
       series: [
-        { name: 'Primary schools', color: primaryColor, metrics: ['classes_primary'] },
-        { name: 'Secondary schools', color: secondaryColor, metrics: ['classes_secondary'] },
+        { name: 'Classroom', color: classroomColor, metrics: [reportedKey('contact_classroom')] },
+        { name: 'Classroom, estimated from lesson counts', color: estColor, metrics: [EST_CLASSROOM] },
+        { name: 'Mentorship', color: mentorshipColor, metrics: ['contact_mentorship'] },
       ],
-      unit: 'classes',
+      unit: 'contact hours',
     }),
   );
 </script>
@@ -34,18 +38,24 @@
     <p class="body">{MENTORING.body}</p>
   {/snippet}
 
-  {#if story.classes.total !== null}
+  {#if story.hours.total !== null}
     <div class="s-pair stats">
-      <Stat value={fmtInt(story.classes.total)} label="classes taught" text="{fmtInt(story.primary)} in primary schools, {fmtInt(story.secondary)} in secondary." />
-      {#if story.classesPerWeek}
-        <Stat value={fmtInt(story.classesPerWeek)} label="classes in a typical school week" />
+      <Stat
+        value={fmtInt(story.hours.total)}
+        label="contact hours"
+        text="{fmtInt(story.classroom)} in classrooms{story.estimated ? ` (${fmtInt(story.estimated)} estimated from lesson counts)` : ''}, {fmtInt(story.mentorship)} in mentoring sessions."
+      />
+      {#if story.hoursPerWeek}
+        <Stat value={fmtInt(story.hoursPerWeek)} label="contact hours in a typical school week" />
       {/if}
     </div>
 
     {#if !chart.empty}
       <div class="s-block">
-        <h3>Classes every {word}</h3>
-        <p class="s-note"><span class="key" style:--c={primaryColor}>Primary</span> and <span class="key" style:--c={secondaryColor}>secondary</span> schools.</p>
+        <h3>Contact hours every {word}</h3>
+        <p class="s-note">
+          <span class="key" style:--c={classroomColor}>Classroom</span>{#if story.estimated}, <span class="key" style:--c={estColor}>estimated from lesson counts</span>,{/if} and <span class="key" style:--c={mentorshipColor}>mentorship</span> hours.
+        </p>
         <EChart option={chart.option} height={250} label={chart.summary} />
       </div>
     {/if}

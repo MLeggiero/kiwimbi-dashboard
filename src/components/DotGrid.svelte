@@ -6,7 +6,7 @@
 
   interface Props {
     columns: Bucket[];
-    rows: { label: string; cells: (number | null)[]; note?: string }[];
+    rows: { label: string; cells: (number | null)[]; note?: string; indent?: boolean }[];
     mode?: 'presence' | 'intensity';
     color?: string;
     unit?: string;
@@ -34,7 +34,7 @@
   <div class="corner"></div>
   {#each rows as r (r.label)}
     {@const max = Math.max(0, ...r.cells.map((v) => v ?? 0))}
-    <div class="name" title={r.label}>{r.label}</div>
+    <div class="name" class:indent={r.indent} title={r.label}>{r.label}</div>
     {#each r.cells as v, i (i)}
       {#if mode === 'presence'}
         <div class="cell" title="{r.label}, {columns[i].title}: {v === null ? 'no reports' : `${fmtInt(v)} ${unit}`}">
@@ -49,6 +49,11 @@
 </div>
 
 <style>
+  .name.indent {
+    padding-left: 14px;
+    font-size: 11px;
+    color: var(--ink-3);
+  }
   .dg {
     display: grid;
     grid-template-columns: minmax(120px, 170px) repeat(var(--cols), minmax(10px, 1fr)) auto;

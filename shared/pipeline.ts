@@ -1,5 +1,5 @@
-import { COLUMN_SPECS, HEADER_NAME, HEADER_TIMESTAMP, IGNORED_HEADERS, normHeader } from './headers';
-import { METRIC_BY_ID, PROGRAM_IDS } from './metrics';
+import { COLUMN_SPECS, HEADER_NAME, HEADER_TIMESTAMP, IGNORED_HEADERS, normHeader, TEACHING_DATES, teachingSpecs } from './headers';
+import { BOOKS_SPLIT_FROM, MAX_REPORT_HOURS_PER_DAY, METRIC_BY_ID, PROGRAM_IDS } from './metrics';
 import { dayToIso, isoToDay, parseDateCell, weekdayIndex } from './dates';
 import { buildNameMap, canonicalName, isTestName } from './names';
 import type { CleanResult, Fact, ISODate, Issue, IssueType, MetricId, Submission, Target, Term } from './types';
@@ -42,15 +42,15 @@ const isBlank = (c: Cell) => c === null || c === undefined || (typeof c === 'str
 
 /**
  * Strict count parser: numbers pass through; text is accepted only when it is plainly a
- * number ("1,500", "12", "7.5"). Anything else ("20-25", "about 40") is rejected rather
- * than digit-stripped.
+ * number ("1,500", "12", "7.5", ".5"). Anything else ("20-25", "about 40") is rejected
+ * rather than digit-stripped.
  */
 export function parseCount(raw: Cell): number | null {
   if (typeof raw === 'number') return Number.isFinite(raw) ? raw : null;
   if (typeof raw !== 'string') return null;
   const s = raw.trim();
   if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(s)) return Number(s.replace(/,/g, ''));
-  if (/^\d+(\.\d+)?$/.test(s)) return Number(s);
+  if (/^(\d+(\.\d+)?|\.\d+)$/.test(s)) return Number(s);
   return null;
 }
 
@@ -77,20 +77,31 @@ export function runPipeline(sheet: SheetExport, opts: PipelineOptions): CleanRes
   const tsIdx = col(HEADER_TIMESTAMP);
   const nameIdx = col(HEADER_NAME);
 
-  const specs = COLUMN_SPECS.map((spec) => ({ spec, def: METRIC_BY_ID[spec.metric], v: col(spec.value), s: col(spec.start), e: col(spec.end) }));
+  // Teaching columns are found by their header pattern, so a new school needs only a form edit.
+  const teaching = teachingSpecs(sheet.header);
+  const allSpecs = [...COLUMN_SPECS, ...teaching.specs];
+  const specs = allSpecs.map((spec) => ({ spec, def: METRIC_BY_ID[spec.metric], v: col(spec.value), s: col(spec.start), e: col(spec.end) }));
+  const missingDates = new Set<string>();
   for (const x of specs) {
-    if (x.v < 0) issues.push({ row: null, type: 'missing_column', metric: x.spec.metric, excluded: false, detail: `Column "${x.spec.value}" wasn't found, so ${x.def.label.toLowerCase()} can't be shown.` });
-    else if (x.s < 0 || x.e < 0) {
+    if (x.v < 0) {
+      // Newer questions may not be in the sheet yet.
+      if (!x.spec.optional) issues.push({ row: null, type: 'missing_column', metric: x.spec.metric, excluded: false, detail: `Column "${x.spec.value}" wasn't found, so ${x.def.label.toLowerCase()} can't be shown.` });
+    } else if (x.s < 0 || x.e < 0) {
       const missing = [x.s < 0 ? x.spec.start : null, x.e < 0 ? x.spec.end : null].filter(Boolean).map((h) => `"${String(h).replace(/\s+/g, ' ')}"`);
-      issues.push({ row: null, type: 'missing_column', metric: x.spec.metric, excluded: false, detail: `Date column ${missing.join(' and ')} for "${x.spec.value}" wasn't found.` });
+      const detail = x.spec.school ? `Date column ${missing.join(' and ')} for the contact-hours questions wasn't found.` : `Date column ${missing.join(' and ')} for "${x.spec.value}" wasn't found.`;
+      if (!missingDates.has(detail)) issues.push({ row: null, type: 'missing_column', metric: x.spec.metric, excluded: false, detail });
+      missingDates.add(detail);
     }
   }
+  for (const h of teaching.bad)
+    issues.push({ row: null, type: 'header_format', excluded: true, detail: `Column "${h}" looks like a contact-hours question but doesn't read as "Classroom (or Mentorship) Contact Hours (School Level)", with Primary, Junior Secondary or Secondary last. Its values aren't shown.` });
 
-  const known = new Set([...IGNORED_HEADERS, ...COLUMN_SPECS.flatMap((s) => [s.value, s.start, s.end])].map(normHeader));
+  const bad = new Set(teaching.bad.map(normHeader));
+  const known = new Set([...IGNORED_HEADERS, TEACHING_DATES.start, TEACHING_DATES.end, ...allSpecs.flatMap((s) => [s.value, s.start, s.end])].map(normHeader));
   const unmappedColumns: string[] = [];
   sheet.header.forEach((h, i) => {
     const label = String(h ?? '').trim();
-    if (label && !known.has(headerNorm[i])) unmappedColumns.push(label);
+    if (label && !known.has(headerNorm[i]) && !bad.has(headerNorm[i])) unmappedColumns.push(label);
   });
   for (const h of unmappedColumns) issues.push({ row: null, type: 'unmapped_column', excluded: false, detail: `Column "${h}" isn't used by the dashboard.` });
 
@@ -128,24 +139,32 @@ export function runPipeline(sheet: SheetExport, opts: PipelineOptions): CleanRes
     let rowEnd: ISODate | null = null;
     const dated = specs.map((x) => ({ x, start: x.s >= 0 ? parseDateCell(row[x.s]) : null, end: x.e >= 0 ? parseDateCell(row[x.e]) : null }));
     const complete = dated.filter((d) => d.start && d.end);
+    // A row with contact hours uses them, not old lesson counts sent alongside.
+    const hasHours = dated.some((d) => d.x.spec.school && d.x.v >= 0 && !isBlank(row[d.x.v]));
+    const rowHours: RowFact[] = [];
 
     for (const { x, start: givenStart, end: givenEnd } of dated) {
       if (x.v < 0 || isBlank(row[x.v])) continue;
       const metric = x.spec.metric;
       const flag = (type: IssueType, excluded: boolean, detail: string) =>
         issues.push({ row: rowNum, type, metric, excluded, detail, ...(reporter ? { reporter } : {}) });
+      if (x.spec.estimated && hasHours) {
+        flag('mixed_teaching', true, `Has both "${x.spec.value}" and contact hours; the contact hours are used.`);
+        continue;
+      }
       const raw = row[x.v];
-      const value = parseCount(raw);
+      const count = parseCount(raw);
+      const value = count === null ? null : count * (x.spec.scale ?? 1);
       if (value === null) {
         flag('non_numeric', true, `"${String(raw).slice(0, 40)}" isn't a plain number.`);
         continue;
       }
       if (value < 0) {
-        flag('negative', true, `${value} is negative.`);
+        flag('negative', true, `${count} is negative.`);
         continue;
       }
       // Recover missing dates where the submission makes them clear; flag every assumption.
-      const span = x.def.defaultSpanDays;
+      const span = x.spec.span ?? x.def.defaultSpanDays;
       let start = givenStart;
       let end = givenEnd;
       let assumption = '';
@@ -181,7 +200,8 @@ export function runPipeline(sheet: SheetExport, opts: PipelineOptions): CleanRes
         flag('date_out_of_range', true, `Dates ${start} to ${end} look like a typo.`);
         continue;
       }
-      const key = [metric, start, end, value, reporter ?? ''].join('|');
+      const loc = x.spec.loc === 'by-date' ? (submitted && submitted >= BOOKS_SPLIT_FROM ? 'main' : undefined) : x.spec.loc;
+      const key = [metric, start, end, value, reporter ?? '', loc ?? '', x.spec.school?.label ?? '', x.spec.estimated ? x.spec.value : ''].join('|');
       if (seen.has(key)) {
         flag('duplicate', true, 'Same person, dates and value as an earlier row.');
         continue;
@@ -192,11 +212,21 @@ export function runPipeline(sheet: SheetExport, opts: PipelineOptions): CleanRes
       const fact: Fact & { row: number } = { m: metric, s: start, e: end, v: value, t: submitted ?? end, row: rowNum };
       if (reporter) fact.r = reporter;
       if (assumption) fact.a = 1;
+      if (x.spec.estimated) fact.est = 1;
+      if (loc) fact.loc = loc;
+      if (x.spec.school) {
+        fact.sch = x.spec.school.label;
+        fact.site = x.spec.school.site;
+        fact.lvl = x.spec.school.level;
+        rowHours.push(fact);
+      }
       facts.push(fact);
       rowMetrics.push(metric);
       if (!rowStart || start < rowStart) rowStart = start;
       if (!rowEnd || end > rowEnd) rowEnd = end;
     }
+    const tooMany = highHours(rowHours);
+    if (tooMany) issues.push({ row: rowNum, type: 'high_hours', metric: 'contact_classroom', excluded: false, detail: tooMany, ...(reporter ? { reporter } : {}) });
     submissions.push({ row: rowNum, reporter: reporter ?? null, submitted, metrics: rowMetrics, start: rowStart, end: rowEnd });
   });
 
@@ -231,6 +261,22 @@ export function runPipeline(sheet: SheetExport, opts: PipelineOptions): CleanRes
 }
 
 type RowFact = Fact & { row: number };
+
+/**
+ * A report whose contact hours average more than MAX_REPORT_HOURS_PER_DAY a school day
+ * usually has minutes typed as hours. The values are kept; the row gets a note.
+ */
+export function highHours(rowHours: Fact[]): string | null {
+  if (!rowHours.length) return null;
+  const start = rowHours.reduce((a, f) => (f.s < a ? f.s : a), rowHours[0].s);
+  const end = rowHours.reduce((a, f) => (f.e > a ? f.e : a), rowHours[0].e);
+  let days = 0;
+  for (let d = isoToDay(start); d <= isoToDay(end); d++) if (weekdayIndex(d) < 5) days++;
+  days = Math.max(1, days);
+  const total = rowHours.reduce((a, f) => a + f.v, 0);
+  if (total / days <= MAX_REPORT_HOURS_PER_DAY) return null;
+  return `Worth a look: ${Math.round(total).toLocaleString('en-US')} contact hours over ${days} school day${days > 1 ? 's' : ''} is more than ${MAX_REPORT_HOURS_PER_DAY} a school day. Minutes may have been typed as hours. The value is still counted.`;
+}
 
 /**
  * Keeps only what falls on or after the data start. A report that runs across the start
@@ -303,7 +349,8 @@ function limitToStart(start: ISODate, facts: RowFact[], issues: Issue[], submiss
 function flagOverlaps(facts: RowFact[], issues: Issue[]) {
   const groups = new Map<string, RowFact[]>();
   for (const f of facts) {
-    const key = METRIC_BY_ID[f.m].scope === 'reporter' ? `${f.m}|${f.r ?? ''}` : f.m;
+    // Old lesson counts were per mentor; contact hours are per school; books per location.
+    const key = f.est || METRIC_BY_ID[f.m].scope === 'reporter' ? `${f.m}|${f.est ? 'est' : ''}|${f.r ?? ''}` : `${f.m}|${f.sch ?? ''}|${f.loc ?? ''}`;
     const list = groups.get(key);
     if (list) list.push(f);
     else groups.set(key, [f]);
@@ -327,7 +374,8 @@ function flagOverlaps(facts: RowFact[], issues: Issue[]) {
 }
 
 function flagCluster(cluster: RowFact[], issues: Issue[]) {
-  if (cluster.length < 2) return;
+  // One submission's own values (an old primary and secondary lesson count) aren't overlaps.
+  if (new Set(cluster.map((f) => f.row)).size < 2) return;
   const firstRow = new Map<string, number>();
   const distinct: RowFact[] = [];
   for (const f of cluster) {

@@ -1,4 +1,5 @@
 import { fmtRange } from '../../shared/dates';
+import { MAIN_BOOKS } from '../lib/dataset';
 import { fmtInt, fmtOne } from '../lib/format';
 import { mentorsInBucket } from '../lib/mentors';
 import { aggregate } from '../lib/series';
@@ -6,11 +7,11 @@ import type { ViewContext } from '../lib/view';
 import { asParams, bandSeries, baseOption, compareBandSeries, compareNotes, numericValue, timeXAxes, tipNote, tipRow, tipTitle, tooltipBase, valueYAxes, type LegendItem } from './common';
 import type { ChartResult } from './timeseries';
 
-/** Books checked out per library visit, per period. */
+/** Books checked out at the main library (all books, before the split) per library visit, per period. */
 export function buildRatio(ctx: ViewContext): ChartResult {
   const { ds, buckets, theme } = ctx;
   const visits = aggregate(ds, ['library_visits'], buckets).values;
-  const books = aggregate(ds, ['books_checked_out'], buckets).values;
+  const books = aggregate(ds, MAIN_BOOKS, buckets).values;
   const ratio = buckets.map((_, i) => (visits[i] && books[i] !== null ? books[i]! / visits[i]! : null));
   const noReports = ratio.map((v) => v === null);
   const color = theme.series[2];
@@ -31,7 +32,7 @@ export function buildRatio(ctx: ViewContext): ChartResult {
           if (ratio[i] === null) return html + tipNote('Needs both visits and books reported', theme.ink3) + notes(i);
           html += tipRow(color, 'Books per visit', fmtOne(ratio[i]));
           html += tipRow(theme.ink3, 'Visits', fmtInt(visits[i]));
-          html += tipRow(theme.ink3, 'Books checked out', fmtInt(books[i]));
+          html += tipRow(theme.ink3, 'Books checked out (main library)', fmtInt(books[i]));
           return html + notes(i);
         },
       },
@@ -43,7 +44,7 @@ export function buildRatio(ctx: ViewContext): ChartResult {
         ...(bands.series ? [bands.series] : []),
       ],
     },
-    table: { columns: ['Period', 'Visits', 'Books checked out', 'Books per visit'], rows: buckets.map((b, i) => [b.title, visits[i] === null ? null : Math.round(visits[i]!), books[i] === null ? null : Math.round(books[i]!), ratio[i] === null ? null : Math.round(ratio[i]! * 100) / 100]) },
+    table: { columns: ['Period', 'Visits', 'Books checked out (main library)', 'Books per visit'], rows: buckets.map((b, i) => [b.title, visits[i] === null ? null : Math.round(visits[i]!), books[i] === null ? null : Math.round(books[i]!), ratio[i] === null ? null : Math.round(ratio[i]! * 100) / 100]) },
     legend,
     summary: `Books checked out per library visit, ${fmtRange(ctx.from, ctx.to)}.`,
     empty: noReports.every(Boolean),

@@ -2,6 +2,7 @@
   import Icon from './Icon.svelte';
   import Sparkline from './Sparkline.svelte';
   import { fmtInt, fmtPct } from '../lib/format';
+  import { basisNote, type Basis } from '../lib/teaching';
 
   interface Props {
     label: string;
@@ -14,11 +15,15 @@
     deltaLabel?: string;
     spark?: (number | null)[];
     color?: string;
+    /** Contact hours across the switch from lesson counts: classroom only, or a new measure. */
+    basis?: Basis;
+    /** Shown on hover, e.g. books by location. */
+    hint?: string;
   }
-  let { label, value, format = fmtInt, sub, delta = null, deltaLabel = '', spark, color = 'var(--series-1)' }: Props = $props();
+  let { label, value, format = fmtInt, sub, delta = null, deltaLabel = '', spark, color = 'var(--series-1)', basis = 'all', hint }: Props = $props();
 </script>
 
-<div class="card tile">
+<div class="card tile" title={hint}>
   <div class="label">
     <span class="swatch" style:background={color}></span>{label}
   </div>
@@ -26,12 +31,14 @@
   {#if sub}<div class="sub">{sub}</div>{/if}
   <div class="foot">
     {#if deltaLabel}
-      {#if delta === null}
+      {#if basis === 'new'}
+        <span class="badge neutral" title={basisNote(basis)}>New measure</span>
+      {:else if delta === null}
         <span class="badge neutral" title="Not enough reports in the comparison period to compare fairly">No comparison</span>
       {:else}
-        <span class="badge {delta >= 0 ? 'good' : 'crit'}">
+        <span class="badge {delta >= 0 ? 'good' : 'crit'}" title={basisNote(basis) || undefined}>
           <Icon name={delta >= 0 ? 'arrow-up' : 'arrow-down'} size={12} />{fmtPct(delta)}
-          <span class="vs">{deltaLabel}</span>
+          <span class="vs">{deltaLabel}{basis === 'classroom' ? ' (classroom)' : ''}</span>
         </span>
       {/if}
     {:else}

@@ -1,8 +1,10 @@
 <script lang="ts">
   // Period A against period B for the page's measures, with a chart of the chosen measure
   // over the chart's dates and both periods shaded on it. Shown while a comparison is on.
-  import { CLASS_METRICS, ENRICHMENT, MEAL_SCHOOLS, METRIC_BY_ID, STAFF_MEALS } from '../../shared/metrics';
+  import { ENRICHMENT, MEAL_SCHOOLS, METRIC_BY_ID, STAFF_MEALS, TEACHING_METRICS } from '../../shared/metrics';
   import type { MetricId } from '../../shared/types';
+  import { baseMetric, type SeriesKey } from '../lib/dataset';
+  import { basisNote, EST_CLASSROOM } from '../lib/teaching';
   import { buildTimeSeries } from '../charts/timeseries';
   import { compareMetrics, periodText } from '../lib/compare';
   import { currentView, periodWord } from '../lib/current.svelte';
@@ -14,19 +16,19 @@
   import EChart from './EChart.svelte';
   import Icon from './Icon.svelte';
 
-  type Row = { label: string; metrics: MetricId[] };
+  type Row = { label: string; metrics: SeriesKey[] };
   const one = (id: MetricId, label = METRIC_BY_ID[id].label): Row => ({ label, metrics: [id] });
   const ROWS: Partial<Record<PageId, Row[]>> = {
     overview: [
       { label: 'School meals', metrics: MEAL_SCHOOLS },
       one('library_visits'),
       one('books_checked_out'),
-      { label: 'Mentorship classes', metrics: CLASS_METRICS },
+      { label: 'Contact hours', metrics: TEACHING_METRICS },
       { label: 'Program attendances', metrics: ENRICHMENT },
     ],
     meals: [{ label: 'School meals (3 schools)', metrics: MEAL_SCHOOLS }, ...MEAL_SCHOOLS.map((id) => one(id, METRIC_BY_ID[id].short)), one(STAFF_MEALS[0], 'Staff & tailoring')],
-    library: [one('library_visits'), one('books_checked_out')],
-    mentorship: [{ label: 'Classes taught', metrics: CLASS_METRICS }, one('classes_primary', 'Primary'), one('classes_secondary', 'Secondary')],
+    library: [one('library_visits'), one('books_checked_out'), one('library_lessons')],
+    mentorship: [{ label: 'Contact hours', metrics: TEACHING_METRICS }, one('contact_classroom', 'Classroom hours'), one('contact_mentorship', 'Mentorship hours')],
     programs: [{ label: 'Program attendances', metrics: ENRICHMENT }, ...ENRICHMENT.map((id) => one(id, METRIC_BY_ID[id].short)), one('agronomy_workshops')],
   };
 
@@ -35,7 +37,7 @@
   const rows = $derived(
     (c ? (ROWS[app.page] ?? []) : []).map((r) => {
       const m = compareMetrics(ctx.ds, r.metrics, c!);
-      return { ...r, ...m, perWord: METRIC_BY_ID[r.metrics[0]].activeDays === 'all' ? 'a day' : 'a school day' };
+      return { ...r, ...m, perWord: METRIC_BY_ID[baseMetric(r.metrics[0])].activeDays === 'all' ? 'a day' : 'a school day' };
     }),
   );
   let picked = $state('');
@@ -43,7 +45,14 @@
 
   const chart = $derived(
     sel
-      ? buildTimeSeries({ ctx, title: sel.label, series: [{ name: sel.label, color: ctx.theme.series[0], metrics: sel.metrics }], unit: 'reported', activeDays: METRIC_BY_ID[sel.metrics[0]].activeDays })
+      ? buildTimeSeries({
+          ctx,
+          title: sel.label,
+          series: [{ name: sel.label, color: ctx.theme.series[0], metrics: sel.metrics }],
+          unit: 'reported',
+          activeDays: METRIC_BY_ID[baseMetric(sel.metrics[0])].activeDays,
+          estimated: sel.metrics.includes('contact_classroom') ? [EST_CLASSROOM] : undefined,
+        })
       : null,
   );
   let chartRef = $state.raw<ECharts | null>(null);
@@ -54,6 +63,7 @@
     if (!c.sameLength) out.push('The periods differ in length, so changes compare daily averages.');
     if (c.a.to >= ctx.ds.today - (REPORTING_LAG_DAYS - 1) || c.b.to >= ctx.ds.today - (REPORTING_LAG_DAYS - 1)) out.push('The last two weeks may still be missing late reports.');
     if (c.b.to < ctx.ds.firstDay) out.push('B is before the first report, so there is nothing to compare with yet.');
+    for (const b of ['classroom', 'new'] as const) if (rows.some((r) => r.basis === b)) out.push(b === 'classroom' ? `* ${basisNote(b)}` : basisNote(b));
     return out;
   });
   const fmtRate = (v: number | null) => (v === null ? '–' : v < 10 ? fmtOne(v) : fmtInt(v));
@@ -98,10 +108,12 @@
                     <small>{r.bRate === null ? 'no reports' : `${fmtRate(r.bRate)} ${r.perWord}`}</small>
                   </td>
                   <td class="num">
-                    {#if r.change === null}
+                    {#if r.basis === 'new'}
+                      <span class="badge neutral" title={basisNote(r.basis)}>New measure</span>
+                    {:else if r.change === null}
                       <span class="badge neutral" title="Too few reports in one of the periods to compare fairly">n/a</span>
                     {:else}
-                      <span class="badge {r.change >= 0 ? 'good' : 'crit'}"><Icon name={r.change >= 0 ? 'arrow-up' : 'arrow-down'} size={12} />{fmtPct(r.change)}</span>
+                      <span class="badge {r.change >= 0 ? 'good' : 'crit'}" title={basisNote(r.basis) || undefined}><Icon name={r.change >= 0 ? 'arrow-up' : 'arrow-down'} size={12} />{fmtPct(r.change)}{r.basis === 'classroom' ? '*' : ''}</span>
                     {/if}
                   </td>
                 </tr>

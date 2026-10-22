@@ -62,6 +62,21 @@ export const FORM_HEADER: string[] = [
   'Starting Date 10',
   'Ending Date 10',
   'Column 33',
+  // Questions added in October 2026 (library lessons, books by location, contact hours).
+  'Number of Library Lessons Given',
+  'Number of Books Checked Out (Satellite Libraries)',
+  'Number of Books Checked Out (Outreach Schools)',
+  'Number of Books Checked Out (KLC)',
+  'Starting Date (Teaching / Mentoring)',
+  'Ending Date (Teaching / Mentoring)',
+  'Classroom Contact Hours (Amagoro Primary)',
+  'Mentorship Contact Hours (Amagoro Primary)',
+  'Classroom Contact Hours (Kidek Primary)',
+  'Mentorship Contact Hours (Kidek Primary)',
+  'Classroom Contact Hours (Ikapolok Primary)',
+  'Mentorship Contact Hours (Ikapolok Primary)',
+  'Classroom Contact Hours (Kidek Junior Secondary)',
+  'Mentorship Contact Hours (Kidek Junior Secondary)',
   'Anything else to share?',
 ];
 
@@ -72,7 +87,17 @@ export const FAKE_TERMS: [string, string, string][] = [
   ['Term 3 2025', '2025-08-25', '2025-10-24'],
   ['Term 1 2026', '2026-01-05', '2026-04-02'],
   ['Term 2 2026', '2026-04-27', '2026-07-31'],
-  ['Term 3 2026', '2026-08-24', '2026-10-30'],
+  ['Term 3 2026', '2026-08-24', '2026-11-20'],
+];
+
+/** In the fake data, schools report contact hours from this Monday on (the real switch follows deployment). */
+export const FAKE_HOURS_FROM = '2026-09-28';
+/** Invented schools and mentor counts for the fake contact hours. */
+const SCHOOLS: [string, number][] = [
+  ['Amagoro Primary', 7],
+  ['Kidek Primary', 6],
+  ['Ikapolok Primary', 7],
+  ['Kidek Junior Secondary', 5],
 ];
 
 const MENTORS = ['Mentor Amani', 'Mentor Baraka', 'Mentor Chebet', 'Mentor Dalia', 'Mentor Eshe', 'Mentor Faraji', 'Mentor Gathoni', 'Mentor Hamisi', 'Mentor Imani', 'Mentor Jabari'];
@@ -126,6 +151,9 @@ export function makeFakeSheet(opts: { today: string; seed?: number }): SheetExpo
     ['Number of Meals Distributed (Staff and Tailoring)', col('Starting Date 9'), col('Ending Date 9'), 30, 45],
   ];
   const catchUp = { s: isoToDay('2026-01-12'), e: isoToDay('2026-03-20') };
+  const hoursFrom = isoToDay(FAKE_HOURS_FROM);
+  const splitFrom = isoToDay('2026-10-22');
+  const tenth = (v: number) => Math.round(v * 10) / 10;
   const enrichmentFrom = isoToDay('2026-07-20');
 
   for (let mon = startOfWeek(isoToDay('2025-01-06')); mon <= today; mon += 7) {
@@ -141,21 +169,40 @@ export function makeFakeSheet(opts: { today: string; seed?: number }): SheetExpo
         });
       }
       // Library: visits and books for the school week.
+      // From the split (by submission date), books come by location and lessons are reported too.
       if (chance(0.8)) {
+        const lag = int(0, 3);
         row('Library Lead', 'Library', fri, (r) => {
           const visits = int(350, 650);
           put(r, col('Number of Library Visits'), col('Starting Date'), col('Ending Date'), visits, mon, fri);
           put(r, col('Number of Books Checked Out'), col('Starting Date 2'), col('Ending Date 2'), Math.round(visits * (0.5 + rand() * 0.3)), mon, fri);
-        });
+          if (fri + lag >= splitFrom) {
+            r[col('Number of Library Lessons Given')] = int(4, 10);
+            r[col('Number of Books Checked Out (Satellite Libraries)')] = int(80, 160);
+            r[col('Number of Books Checked Out (Outreach Schools)')] = int(40, 120);
+          }
+        }, lag);
       }
-      // Mentorship: daily class logs.
-      for (let d = mon; d <= fri; d++) {
+      // Contact hours: one weekly row per school, each school's total for its mentors.
+      if (mon >= hoursFrom) {
+        for (const [school, mentors] of SCHOOLS) {
+          if (!chance(0.9)) continue;
+          row(`${school} Coordinator`, 'Teaching / Mentorship', fri, (r) => {
+            r[col('Starting Date (Teaching / Mentoring)')] = dayToIso(mon);
+            r[col('Ending Date (Teaching / Mentoring)')] = dayToIso(fri);
+            r[col(`Classroom Contact Hours (${school})`)] = tenth(mentors * (8 + rand() * 4));
+            r[col(`Mentorship Contact Hours (${school})`)] = tenth(mentors * 8.7 * (0.85 + rand() * 0.15));
+          });
+        }
+      }
+      // Mentorship: daily class logs, until contact hours replace them.
+      for (let d = mon; d <= fri && mon < hoursFrom; d++) {
         if (!inTerm(d) || d > today) continue;
         for (const mentor of MENTORS) {
-          if (!chance(0.12)) continue;
+          if (!chance(0.85)) continue;
           const name = VARIANT[mentor] && chance(0.3) ? VARIANT[mentor] : mentor;
           row(name, 'Teaching / Mentorship', d, (r) => {
-            put(r, col('Number of Primary School Classes Taught'), col('Starting Date 3'), col('Ending Date 3'), int(1, 6), d, d);
+            put(r, col('Number of Primary School Classes Taught'), col('Starting Date 3'), col('Ending Date 3'), int(6, 10), d, d);
             if (chance(0.25)) put(r, col('Number of Secondary School Classes Taught'), col('Starting Date 6'), col('Ending Date 6'), int(1, 3), d, d);
           });
         }
@@ -216,6 +263,18 @@ export function makeFakeSheet(opts: { today: string; seed?: number }): SheetExpo
   row('Programs Lead', 'Library', isoToDay('2026-09-02'), (r) => put(r, col('Number of Students Attending Sports Programs'), typed('Starting', 'Sports'), typed('Ending', 'Sports'), 55, '2026-08-26', '2026-08-30'));
   row('Lab Lead', 'Computer Lab', isoToDay('2026-05-20'), (r) => put(r, col('Number of Students Using Computer Lab'), typed('Starting', 'Computer Lab'), typed('Ending', 'Computer Lab'), 3100, '2026-02-02', '2026-05-15'));
   row('Test Test', 'Meals', isoToDay('2026-02-10'), (r) => put(r, col('Number of Meals Distributed (Amagoro Primary)'), col('Starting Date 5'), col('Ending Date 5'), 99999, '2026-02-09', '2026-02-10'));
+  // Minutes typed as hours, and a row with both old lesson counts and contact hours.
+  row('Ikapolok Primary Coordinator', 'Teaching / Mentorship', isoToDay('2026-10-09'), (r) => {
+    r[col('Starting Date (Teaching / Mentoring)')] = '2026-10-05';
+    r[col('Ending Date (Teaching / Mentoring)')] = '2026-10-09';
+    r[col('Classroom Contact Hours (Ikapolok Primary)')] = 7800;
+  });
+  row('Mentor Amani', 'Teaching / Mentorship', isoToDay('2026-10-06'), (r) => {
+    put(r, col('Number of Primary School Classes Taught'), col('Starting Date 3'), col('Ending Date 3'), 4, '2026-10-06', '2026-10-06');
+    r[col('Starting Date (Teaching / Mentoring)')] = '2026-10-06';
+    r[col('Ending Date (Teaching / Mentoring)')] = '2026-10-06';
+    r[col('Mentorship Contact Hours (Kidek Primary)')] = '.5';
+  });
   const tailoring = rows.find((r) => r[col('Number of Students Attending Tailoring Lessons')] !== null);
   if (tailoring) rows.push([...tailoring]);
   const extra = rows.find((r) => r[col('Program Type')] === 'Library');
@@ -235,7 +294,7 @@ export function makeFakeSheet(opts: { today: string; seed?: number }): SheetExpo
     termsRows: FAKE_TERMS.filter(([, s]) => isoToDay(s) <= today + 60).map((t) => [...t]),
     targetsRows: [
       ['meals', 2026, 90000],
-      ['mentorship', 2026, 900],
+      ['mentorship', 2026, 12000],
     ],
     sheetUrl: null,
   };

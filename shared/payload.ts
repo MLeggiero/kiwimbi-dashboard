@@ -15,6 +15,13 @@ export function toPublicPayload(clean: CleanResult, viewer: PublicPayload['viewe
     .map((f) => {
       const out: PublicFact = { m: f.m, s: f.s, e: f.e, v: f.v, t: f.t };
       if (f.a) out.a = 1;
+      if (f.est) out.est = 1;
+      if (f.loc) out.loc = f.loc;
+      if (f.sch) {
+        out.sch = f.sch;
+        out.site = f.site;
+        out.lvl = f.lvl;
+      }
       return out;
     });
   return {

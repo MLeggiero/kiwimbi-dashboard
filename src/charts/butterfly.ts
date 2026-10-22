@@ -1,27 +1,79 @@
 import { fmtRange } from '../../shared/dates';
-import { fmtCompact, fmtInt } from '../lib/format';
-import { aggregate } from '../lib/series';
+import { TEACHING_METRICS } from '../../shared/metrics';
+import type { MetricId, TeachingLevel } from '../../shared/types';
+import { levelKey, schoolKey, type SeriesKey } from '../lib/dataset';
+import { fmtCompact, fmtInt, fmtOne } from '../lib/format';
+import { aggregate, cumulative, perActiveDay } from '../lib/series';
+import { EST_CLASSROOM } from '../lib/teaching';
 import type { ViewContext } from '../lib/view';
-import { asParams, bandSeries, baseOption, compareBandSeries, compareNotes, numericValue, timeXAxes, tipNote, tipRow, tipTitle, tooltipBase, valueYAxes, type LegendItem } from './common';
+import { asParams, bandSeries, baseOption, compareBandSeries, compareNotes, ESTIMATED_LABEL, estimatedItemStyle, estimatedLegend, numericValue, timeXAxes, tipNote, tipRow, tipTitle, tooltipBase, valueYAxes, type LegendItem } from './common';
 import type { ChartResult } from './timeseries';
 
-/** Primary classes above the line, secondary below: the balance between levels over time. */
-export function buildButterfly(ctx: ViewContext): ChartResult {
-  const { ds, buckets, theme } = ctx;
-  const primary = aggregate(ds, ['classes_primary'], buckets).values;
-  const secondary = aggregate(ds, ['classes_secondary'], buckets).values;
-  const noReports = primary.map((v, i) => v === null && secondary[i] === null);
+export type TeachingSplit = 'level' | 'school';
+
+type Vals = (number | null)[];
+
+/**
+ * Contact hours per period: classroom hours above the line and mentorship hours below, each
+ * stacked by level or by school. Hours estimated from old lesson counts (no school or level)
+ * sit above the line in the estimated style. Follows Show: totals, running total or per school day.
+ */
+export function buildTeachingChart(ctx: ViewContext, by: TeachingSplit): ChartResult {
+  const { ds, buckets, theme, view } = ctx;
+  const levelColor: Record<TeachingLevel, string> = { Primary: theme.series[0], 'Junior Secondary': theme.series[4], Secondary: theme.series[1] };
+  const palette = [theme.series[0], theme.series[2], theme.series[3], theme.series[4], theme.series[1], theme.series[5], theme.ink3];
+  const groups: { label: string; key: (m: MetricId) => SeriesKey; color: string }[] =
+    by === 'level'
+      ? ds.levels.map((l) => ({ label: l, key: (m) => levelKey(m, l), color: levelColor[l] }))
+      : ds.schools.map((s, i) => ({ label: s.label, key: (m) => schoolKey(m, s.label), color: palette[i % palette.length] }));
+
+  const tx = (vals: Vals): Vals => (view === 'rate' ? perActiveDay(vals, buckets, 'weekdays') : view === 'cumulative' ? cumulative(vals) : vals);
+  const fmt = view === 'rate' ? fmtOne : fmtInt;
+  const all = aggregate(ds, TEACHING_METRICS, buckets).values;
+  const noReports = all.map((v) => v === null);
+  const est = tx(aggregate(ds, [EST_CLASSROOM], buckets).values);
+  const hasEst = est.some((v) => v !== null && v > 0);
   const prov = ctx.provisionalFrom;
   const op = (i: number) => (prov !== null && i >= prov ? 0.45 : 1);
-  const legend: LegendItem[] = [
-    { label: 'Primary classes', color: theme.series[0], kind: 'bar' },
-    { label: 'Secondary classes', color: theme.series[1], kind: 'bar' },
-  ];
+
+  const data = groups.map((g) => ({ ...g, up: tx(aggregate(ds, [g.key('contact_classroom')], buckets).values), down: tx(aggregate(ds, [g.key('contact_mentorship')], buckets).values) }));
+  const bar = (id: string, name: string, stack: string, vals: Vals, itemStyle: Record<string, unknown>, sign = 1) => ({
+    id,
+    name,
+    type: 'bar',
+    stack,
+    barMaxWidth: 20,
+    itemStyle: { borderColor: theme.card, borderWidth: 1, ...itemStyle },
+    data: vals.map((v, i) => ({ value: v === null || v === 0 ? null : sign * v, itemStyle: { opacity: op(i) } })),
+    emphasis: { disabled: true },
+  });
+  const series: Record<string, unknown>[] = [bandSeries(buckets, ctx.holidays, noReports, theme)];
+  for (const [gi, g] of data.entries()) series.push(bar(`up${gi}`, `Classroom · ${g.label}`, 'up', g.up, { color: g.color }));
+  if (hasEst) series.push(bar('est', `Classroom · ${ESTIMATED_LABEL.toLowerCase()}`, 'up', est, estimatedItemStyle(theme.series[0], theme)));
+  for (const [gi, g] of data.entries()) series.push(bar(`down${gi}`, `Mentorship · ${g.label}`, 'down', g.down, { color: g.color }, -1));
+
+  const legend: LegendItem[] = data.map((g) => ({ label: g.label, color: g.color, kind: 'bar' }));
+  if (hasEst) legend.push(estimatedLegend(theme.series[0], theme));
   if (ctx.holidays.some(Boolean)) legend.push({ label: 'School break', color: theme.holiday, kind: 'holiday' });
   if (noReports.some((v, i) => v && !ctx.holidays[i])) legend.push({ label: 'No reports', color: theme.hatch, kind: 'hatch' });
+  if (prov !== null) legend.push({ label: 'Still coming in', color: theme.ink3, kind: 'provisional' });
   const bands = compareBandSeries(ctx);
   legend.push(...bands.legend);
-  const [yMain, yBand] = valueYAxes(theme, (v) => fmtCompact(Math.abs(v)));
+  if (bands.series) series.push(bands.series);
+  const [yMain, yBand] = valueYAxes(theme, (v) => (view === 'rate' ? fmtOne(Math.abs(v)) : fmtCompact(Math.abs(v))));
+
+  // Table and CSV: one row per period, school and activity, with estimated hours marked.
+  const raw = ds.schools.map((s) => ({ s, hours: TEACHING_METRICS.map((m) => aggregate(ds, [schoolKey(m, s.label)], buckets).values) }));
+  const estRaw = aggregate(ds, [EST_CLASSROOM], buckets).values;
+  const rows: (string | number | null)[][] = [];
+  buckets.forEach((b, i) => {
+    for (const { s, hours } of raw)
+      TEACHING_METRICS.forEach((m, mi) => {
+        const v = hours[mi][i];
+        if (v !== null) rows.push([b.title, s.label, s.level, m === 'contact_classroom' ? 'Classroom' : 'Mentorship', Math.round(v * 10) / 10, 'No']);
+      });
+    if (estRaw[i]) rows.push([b.title, 'Not recorded', 'Not recorded', 'Classroom', Math.round(estRaw[i]! * 10) / 10, 'Yes']);
+  });
 
   return {
     option: {
@@ -29,32 +81,28 @@ export function buildButterfly(ctx: ViewContext): ChartResult {
       grid: { left: 4, right: 12, top: bands.series ? 24 : 14, bottom: 4 },
       tooltip: {
         ...tooltipBase(theme),
-        formatter: (raw: unknown) => {
-          const params = asParams(raw);
+        formatter: (rawParams: unknown) => {
+          const params = asParams(rawParams);
           const i = params[0]?.dataIndex ?? 0;
           let html = tipTitle(buckets[i]?.title ?? '');
           for (const p of params) {
             const v = numericValue(p.value);
             if (p.seriesId === 'band' || p.seriesId === 'compare' || v === null) continue;
-            html += tipRow(String(p.color), String(p.seriesName), fmtInt(Math.abs(v)));
+            html += tipRow(String(p.color), String(p.seriesName), fmt(Math.abs(v)));
           }
           if (noReports[i]) html += tipNote(ctx.holidays[i] ? 'School break: no reports' : 'No reports for this period', theme.ink3);
+          if (prov !== null && i >= prov) html += tipNote('Reports may still be coming in', theme.ink3);
           for (const note of compareNotes(ctx, buckets[i])) html += tipNote(note, note.endsWith('A') ? theme.cmpA : theme.cmpB);
           return html;
         },
       },
       xAxis: timeXAxes(theme, buckets),
       yAxis: [yMain, yBand],
-      series: [
-        bandSeries(buckets, ctx.holidays, noReports, theme),
-        { id: 'p', name: 'Primary classes', type: 'bar', stack: 'levels', barMaxWidth: 20, itemStyle: { color: theme.series[0], borderRadius: [4, 4, 0, 0] }, data: primary.map((v, i) => ({ value: v, itemStyle: { opacity: op(i) } })), emphasis: { disabled: true } },
-        { id: 'q', name: 'Secondary classes', type: 'bar', stack: 'levels', barMaxWidth: 20, itemStyle: { color: theme.series[1], borderRadius: [0, 0, 4, 4] }, data: secondary.map((v, i) => ({ value: v === null ? null : -v, itemStyle: { opacity: op(i) } })), emphasis: { disabled: true } },
-        ...(bands.series ? [bands.series] : []),
-      ],
+      series,
     },
-    table: { columns: ['Period', 'Primary classes', 'Secondary classes'], rows: buckets.map((b, i) => [b.title, primary[i] === null ? null : Math.round(primary[i]!), secondary[i] === null ? null : Math.round(secondary[i]!)]) },
+    table: { columns: ['Period', 'School', 'Level', 'Activity', 'Contact hours', 'Estimated from lesson counts'], rows },
     legend,
-    summary: `Primary and secondary mentorship classes per period, ${fmtRange(ctx.from, ctx.to)}.`,
+    summary: `Contact hours per period, ${fmtRange(ctx.from, ctx.to)}: classroom hours above the line and mentorship hours below, by ${by}.`,
     empty: noReports.every(Boolean),
   };
 }
