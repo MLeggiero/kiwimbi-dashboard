@@ -88,13 +88,13 @@ export function runPipeline(sheet: SheetExport, opts: PipelineOptions): CleanRes
       if (!x.spec.optional) issues.push({ row: null, type: 'missing_column', metric: x.spec.metric, excluded: false, detail: `Column "${x.spec.value}" wasn't found, so ${x.def.label.toLowerCase()} can't be shown.` });
     } else if (x.s < 0 || x.e < 0) {
       const missing = [x.s < 0 ? x.spec.start : null, x.e < 0 ? x.spec.end : null].filter(Boolean).map((h) => `"${String(h).replace(/\s+/g, ' ')}"`);
-      const detail = x.spec.school ? `Date column ${missing.join(' and ')} for the contact-hours questions wasn't found.` : `Date column ${missing.join(' and ')} for "${x.spec.value}" wasn't found.`;
+      const detail = x.spec.school ? `Date column ${missing.join(' and ')} for the teaching contact-hours questions wasn't found.` : `Date column ${missing.join(' and ')} for "${x.spec.value}" wasn't found.`;
       if (!missingDates.has(detail)) issues.push({ row: null, type: 'missing_column', metric: x.spec.metric, excluded: false, detail });
       missingDates.add(detail);
     }
   }
   for (const h of teaching.bad)
-    issues.push({ row: null, type: 'header_format', excluded: true, detail: `Column "${h}" looks like a contact-hours question but doesn't read as "Classroom (or Mentorship) Contact Hours (School Level)", with Primary, Junior Secondary or Secondary last. Its values aren't shown.` });
+    issues.push({ row: null, type: 'header_format', excluded: true, detail: `Column "${h}" looks like a teaching contact-hours question but doesn't read as "Classroom (or Mentorship) Contact Hours (School Level)", with Primary, Junior Secondary or Secondary last. Its values aren't shown.` });
 
   const bad = new Set(teaching.bad.map(normHeader));
   const known = new Set([...IGNORED_HEADERS, TEACHING_DATES.start, TEACHING_DATES.end, ...allSpecs.flatMap((s) => [s.value, s.start, s.end])].map(normHeader));
@@ -149,7 +149,7 @@ export function runPipeline(sheet: SheetExport, opts: PipelineOptions): CleanRes
       const flag = (type: IssueType, excluded: boolean, detail: string) =>
         issues.push({ row: rowNum, type, metric, excluded, detail, ...(reporter ? { reporter } : {}) });
       if (x.spec.estimated && hasHours) {
-        flag('mixed_teaching', true, `Has both "${x.spec.value}" and contact hours; the contact hours are used.`);
+        flag('mixed_teaching', true, `Has both "${x.spec.value}" and teaching contact hours; the teaching contact hours are used.`);
         continue;
       }
       const raw = row[x.v];
@@ -275,7 +275,7 @@ export function highHours(rowHours: Fact[]): string | null {
   days = Math.max(1, days);
   const total = rowHours.reduce((a, f) => a + f.v, 0);
   if (total / days <= MAX_REPORT_HOURS_PER_DAY) return null;
-  return `Worth a look: ${Math.round(total).toLocaleString('en-US')} contact hours over ${days} school day${days > 1 ? 's' : ''} is more than ${MAX_REPORT_HOURS_PER_DAY} a school day. Minutes may have been typed as hours. The value is still counted.`;
+  return `Worth a look: ${Math.round(total).toLocaleString('en-US')} teaching contact hours over ${days} school day${days > 1 ? 's' : ''} is more than ${MAX_REPORT_HOURS_PER_DAY} a school day. Minutes may have been typed as hours. The value is still counted.`;
 }
 
 /**

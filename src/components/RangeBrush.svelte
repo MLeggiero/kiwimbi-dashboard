@@ -1,11 +1,10 @@
 <script lang="ts">
-  import { buildBrush, DAY_MS, MARK_STRIP, type BrushMark } from '../charts/brush';
+  import { buildBrush, DAY_MS } from '../charts/brush';
   import type { ECharts } from '../lib/echarts';
   import { app } from '../lib/state.svelte';
   import { readChartTheme, themeState } from '../lib/theme.svelte';
   import EChart from './EChart.svelte';
 
-  let { marks = [] }: { marks?: BrushMark[] } = $props();
   let chart: ECharts | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -14,7 +13,7 @@
     const ds = app.data;
     if (!ds) return {};
     const [from, to] = app.range;
-    return buildBrush(ds, from, to, readChartTheme(), marks);
+    return buildBrush(ds, from, to, readChartTheme());
   });
 
   function onZoom() {
@@ -30,7 +29,7 @@
 </script>
 
 <div class="brush">
-  <EChart {option} height={marks.length ? 46 + MARK_STRIP : 46} label="Reporting activity over time. Drag the handles or the window to change the date range.{marks.length ? ' Marked underneath: the periods being compared.' : ''}" onready={(c) => (chart = c)} events={{ datazoom: onZoom }} />
+  <EChart {option} height={46} label="Reporting activity over time. Drag the handles or the window to change the date range." onready={(c) => (chart = c)} events={{ datazoom: onZoom }} />
 </div>
 
 <style>

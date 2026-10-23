@@ -61,9 +61,6 @@
   --series-5: #09a0a0;
   --series-6: #e96563;
   --ghost: #9d9f97;
-  /* Comparison periods A and B (bands on charts, chips in the filters) */
-  --cmp-a: var(--water-deep);
-  --cmp-b: var(--sun-deep);
   --grid: #ebe6da;
   --axis: #cbc3b0;
   --holiday: rgba(120, 110, 90, 0.1);

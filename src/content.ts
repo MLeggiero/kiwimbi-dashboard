@@ -174,7 +174,7 @@ export const HOW_WE_COUNT = {
     { tone: 'sun', term: 'Lunches (school meals)', text: `Meals served to pupils at ${SCHOOLS_SENTENCE}, reported for each school. Meals for staff and tailoring students are recorded separately and are not part of this count.` },
     { tone: 'water', term: 'Library visits', text: 'Visits to the Kiwimbi Library in Amagoro, as reported by the Library. One person who comes twice counts as two visits.' },
     { tone: 'coral', term: 'Books borrowed', text: 'Books checked out at the Library, its satellite libraries and outreach schools, reported by location from October 22, 2026. “One book for every 2 visits” compares books borrowed at the Library with its visits over the same dates.' },
-    { tone: 'leaf', term: 'Contact hours', text: 'Time Kiwimbi mentors spend teaching or mentoring students, in classrooms and in mentoring sessions, counted once however many students are there. Weeks reported as lesson counts are estimated at 40 minutes a lesson.' },
+    { tone: 'leaf', term: 'Teaching contact hours', text: 'Time Kiwimbi mentors spend teaching or mentoring students, in classrooms and in mentoring sessions, counted once however many students are there. Weeks reported as lesson counts are estimated at 40 minutes a lesson.' },
     { tone: 'teal', term: 'Attendances (skills programs)', text: 'One student at one session. If 20 students come to art every week for 4 weeks, that is 80 attendances. Used for sports, art, tailoring, carpentry, the computer lab, holiday camps and kitchen gardens.' },
     { tone: 'earth', term: 'Kitchen-garden workshops', text: 'The number of agronomy (kitchen-garden) workshops held. Their attendees are counted with the other programs.' },
   ],

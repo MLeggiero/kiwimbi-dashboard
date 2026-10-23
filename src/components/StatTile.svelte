@@ -1,51 +1,22 @@
 <script lang="ts">
-  import Icon from './Icon.svelte';
-  import Sparkline from './Sparkline.svelte';
-  import { fmtInt, fmtPct } from '../lib/format';
-  import { basisNote, type Basis } from '../lib/teaching';
+  import { fmtInt } from '../lib/format';
 
   interface Props {
     label: string;
     value: number | null;
     format?: (v: number | null) => string;
     sub?: string;
-    /** Fractional change vs the comparison period; null = not enough data to compare. */
-    delta?: number | null;
-    /** Shown when a comparison is active, e.g. "vs last year". */
-    deltaLabel?: string;
-    spark?: (number | null)[];
     color?: string;
-    /** Contact hours across the switch from lesson counts: classroom only, or a new measure. */
-    basis?: Basis;
-    /** Shown on hover, e.g. books by location. */
-    hint?: string;
   }
-  let { label, value, format = fmtInt, sub, delta = null, deltaLabel = '', spark, color = 'var(--series-1)', basis = 'all', hint }: Props = $props();
+  let { label, value, format = fmtInt, sub, color = 'var(--series-1)' }: Props = $props();
 </script>
 
-<div class="card tile" title={hint}>
+<div class="card tile">
   <div class="label">
     <span class="swatch" style:background={color}></span>{label}
   </div>
   <div class="value">{format(value)}</div>
   {#if sub}<div class="sub">{sub}</div>{/if}
-  <div class="foot">
-    {#if deltaLabel}
-      {#if basis === 'new'}
-        <span class="badge neutral" title={basisNote(basis)}>New measure</span>
-      {:else if delta === null}
-        <span class="badge neutral" title="Not enough reports in the comparison period to compare fairly">No comparison</span>
-      {:else}
-        <span class="badge {delta >= 0 ? 'good' : 'crit'}" title={basisNote(basis) || undefined}>
-          <Icon name={delta >= 0 ? 'arrow-up' : 'arrow-down'} size={12} />{fmtPct(delta)}
-          <span class="vs">{deltaLabel}{basis === 'classroom' ? ' (classroom)' : ''}</span>
-        </span>
-      {/if}
-    {:else}
-      <span></span>
-    {/if}
-    {#if spark}<Sparkline values={spark} {color} />{/if}
-  </div>
 </div>
 
 <style>
@@ -53,13 +24,13 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
-    padding: 16px 18px 12px;
+    padding: 16px 18px 14px;
   }
   .label {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 13px;
+    font-size: 14px;
     color: var(--ink-2);
   }
   .swatch {
@@ -75,19 +46,7 @@
     margin-top: 4px;
   }
   .sub {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--ink-3);
-  }
-  .foot {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 8px;
-    margin-top: 8px;
-    min-height: 28px;
-  }
-  .vs {
-    font-weight: 400;
-    opacity: 0.85;
   }
 </style>

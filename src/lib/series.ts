@@ -165,11 +165,38 @@ export function holidayFlags(buckets: Bucket[], terms: Terms): boolean[] {
   });
 }
 
-/** Weekly totals for the `n` weeks ending with the week containing `end` (sparklines). */
-export function lastWeeks(ds: Dataset, metrics: readonly SeriesKey[], end: number, n: number): (number | null)[] {
-  const lastStart = startOfWeek(end);
-  const buckets = makeBuckets(lastStart - 7 * (n - 1), lastStart + 6, 'week', []);
-  return aggregate(ds, metrics, buckets).values;
+/**
+ * Plain words for a period that runs into a school break, e.g. "August was mostly a school
+ * break (Term 3 2026 started Aug 24)." Null when it is all in term or outside the known terms.
+ */
+export function breakNote(name: string, from: number, to: number, terms: Terms): string | null {
+  const { school, off } = breakDays(from, to, terms);
+  if (!off) return null;
+  const back = terms.find((t) => t.start > from && t.start <= to);
+  const when = back ? ` (${back.label} started ${fmtDayShort(back.start)})` : '';
+  if (!school) return `${name} was a school break${when}.`;
+  return off >= school ? `${name} was mostly a school break${when}.` : `${name} included ${off} school-break day${off === 1 ? '' : 's'}${when}.`;
+}
+
+/** At least half of the period's weekdays fall in a school break. */
+export function mostlyBreak(from: number, to: number, terms: Terms): boolean {
+  const { school, off } = breakDays(from, to, terms);
+  return off > 0 && off >= school;
+}
+
+/** Weekdays in term and in school breaks, counting only between known terms. */
+function breakDays(from: number, to: number, terms: Terms): { school: number; off: number } {
+  let school = 0;
+  let off = 0;
+  if (!terms.length) return { school, off };
+  const first = Math.min(...terms.map((t) => t.start));
+  const last = Math.max(...terms.map((t) => t.end));
+  for (let d = Math.max(from, first); d <= Math.min(to, last); d++) {
+    if (weekdayIndex(d) >= 5) continue;
+    if (terms.some((t) => d >= t.start && d <= t.end)) school++;
+    else off++;
+  }
+  return { school, off };
 }
 
 export function autoGranularity(from: number, to: number): Granularity {

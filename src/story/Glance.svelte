@@ -35,7 +35,7 @@
       <Stat value={value(story.meals.total)} label="lunches served" text={mealsText} color="var(--earth-deep)" rule="var(--sun)" />
       <Stat value={value(story.visits.total)} label="library visits" text={visitsText} color="var(--water-deep)" rule="var(--water)" />
       <Stat value={value(story.books.total)} label="books borrowed" text={booksText} color="var(--coral-deep)" rule="var(--coral)" />
-      <Stat value={value(story.hours.total)} label="contact hours" text={hoursText} color="var(--leaf-deep)" rule="var(--leaf)" />
+      <Stat value={value(story.hours.total)} label="teaching contact hours" text={hoursText} color="var(--leaf-deep)" rule="var(--leaf)" />
     </div>
   </div>
 </section>

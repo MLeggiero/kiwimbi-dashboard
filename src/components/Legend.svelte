@@ -57,13 +57,6 @@
   .key.estimated {
     border: 1px dashed var(--ink-3);
   }
-  .key.span {
-    width: 14px;
-    height: 12px;
-    border-radius: 0;
-    border-inline: 1.5px dashed var(--c);
-    background: color-mix(in srgb, var(--c) 16%, transparent);
-  }
   .key.holiday {
     border: 1px solid var(--hairline-strong);
   }

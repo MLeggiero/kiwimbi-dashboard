@@ -7,10 +7,12 @@ Google Sheet and is only visible to signed-in Kiwimbi Google accounts.
 - **The story** (everyone signed in): photos, short program descriptions and a few clear numbers for any
   stretch of time (this year, this term, the last 4 or 12 weeks, last year, since reporting began, or custom
   dates and a draggable timeline). Words and photos live in `src/content.ts`.
-- **The dashboard** (people in `MANAGER_EMAILS`, who land here and can switch to the story): a few
-  explanatory charts per page, each titled with its takeaway ("Ikapolok grew most (+26%)"), with filters,
-  the Year in activity calendar, a 12-week reporting grid, staff and tailoring meals, report counts and
-  Data health.
+- **The dashboard** (people in `MANAGER_EMAILS`, who land here and can switch to the story): each page
+  opens with highlights in plain words (last week, last month and the year so far, each against the
+  period before, with school breaks explained), then one labelled date control and a few explanatory
+  charts, each titled with its takeaway ("Ikapolok grew most (+26%)"). Chart options and a "Compare two
+  periods" tool are folded away under the dates. Staff and tailoring meals are on the Meals page. Checks
+  on the reports themselves (report counts, who reported, rows to fix) are on **Data health** only.
 
 **This repository contains code only. It never contains data, spreadsheet IDs or credentials.**
 Anyone can fork it without getting access to anything.
@@ -115,7 +117,8 @@ the pencil icon on the deployment people use. Set Version to *New version* and c
 ### Optional tabs in the sheet
 
 - **Dashboard Terms**: `Term | Start date | End date` (e.g. `Term 3 2026 | 2026-08-24 | 2026-10-30`).
-  Turns on school-break shading, the *This term* range and *Group by term*.
+  Turns on school-break shading, the *This term* range, bars by term, and the notes that explain a
+  change when a week or month falls in a school break ("August was mostly a school break").
 - **Dashboard Targets**: `Metric or program | Year | Target` (e.g. `meals | 2026 | 90000`).
   Adds a target pace line to the *this year vs last year* charts. Keys: `meals` (meals served),
   `library` (library visits), `mentorship` (classes taught).

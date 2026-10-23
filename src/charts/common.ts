@@ -1,14 +1,11 @@
-import { fmtRange } from '../../shared/dates';
-import type { Period } from '../lib/compare';
 import { esc, fmtCompact } from '../lib/format';
 import type { Bucket } from '../lib/series';
 import type { ChartTheme } from '../lib/theme.svelte';
-import type { ViewContext } from '../lib/view';
 
 export interface LegendItem {
   label: string;
   color: string;
-  kind: 'bar' | 'line' | 'area' | 'ghost' | 'target' | 'holiday' | 'hatch' | 'provisional' | 'span' | 'estimated';
+  kind: 'bar' | 'line' | 'area' | 'ghost' | 'target' | 'holiday' | 'hatch' | 'provisional' | 'estimated';
 }
 
 export const reducedMotion = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -78,85 +75,7 @@ export function timeXAxes(theme: ChartTheme, buckets: Bucket[]) {
       axisLabel: { color: theme.ink3, fontSize: 11, hideOverlap: true, formatter: (k: string) => labels.get(k) ?? '' },
     },
     { type: 'category', data: keys, boundaryGap: true, show: false },
-    // Day-accurate positions for comparison bands: bucket i spans [i, i + 1].
-    { type: 'value', min: 0, max: Math.max(1, buckets.length), show: false },
   ];
-}
-
-/** Where a day starts (or, with `end`, finishes) on the band axis, in bucket units. */
-function dayPos(buckets: Bucket[], day: number, end = false): number {
-  const i = buckets.findIndex((b) => day >= b.start && day <= b.end);
-  if (i < 0) return day < (buckets[0]?.start ?? 0) ? 0 : buckets.length;
-  const b = buckets[i];
-  return i + (day - b.start + (end ? 1 : 0)) / (b.end - b.start + 1);
-}
-
-export interface CompareBand {
-  key: 'A' | 'B';
-  period: Period;
-  color: string;
-  /** Some of the period falls inside the chart's dates. */
-  visible: boolean;
-}
-
-/** The comparison periods to mark on a chart: B always, A unless it is the whole chart. */
-export function compareBands(ctx: ViewContext): CompareBand[] {
-  const c = ctx.comparison;
-  if (!c) return [];
-  const out: CompareBand[] = [];
-  const add = (key: 'A' | 'B', period: Period, color: string) => out.push({ key, period, color, visible: period.to >= ctx.from && period.from <= ctx.to });
-  if (!c.whole) add('A', c.a, ctx.theme.cmpA);
-  add('B', c.b, ctx.theme.cmpB);
-  return out;
-}
-
-/**
- * Shaded, labelled bands over the stretches being compared, so a long chart shows exactly
- * which weeks A and B are. Also returns legend entries (bands off the chart say so).
- */
-export function compareBandSeries(ctx: ViewContext): { series: Record<string, unknown> | null; legend: LegendItem[] } {
-  const bands = compareBands(ctx);
-  const legend: LegendItem[] = [];
-  const areas: unknown[] = [];
-  const edges: unknown[] = [];
-  for (const b of bands) {
-    // With the overlay line drawn, B being off the chart is already explained by the legend.
-    if (!b.visible && ctx.cmp) continue;
-    legend.push({ label: `${b.key}: ${fmtRange(b.period.from, b.period.to)}${b.visible ? '' : ' (outside the chart’s dates)'}`, color: b.color, kind: 'span' });
-    if (!b.visible) continue;
-    const x0 = dayPos(ctx.buckets, Math.max(b.period.from, ctx.from));
-    const x1 = dayPos(ctx.buckets, Math.min(b.period.to, ctx.to), true);
-    areas.push([
-      { name: b.key, xAxis: x0, itemStyle: { color: b.color, opacity: ctx.theme.dark ? 0.16 : 0.11 }, label: { show: true, position: 'top', distance: 3, color: b.color, fontSize: 11, fontWeight: 800, formatter: b.key } },
-      { xAxis: x1 },
-    ]);
-    for (const x of [x0, x1]) edges.push({ xAxis: x, lineStyle: { color: b.color, width: 1.25, type: [4, 3], opacity: 0.9 } });
-  }
-  if (!areas.length) return { series: null, legend };
-  return {
-    series: {
-      id: 'compare',
-      type: 'line',
-      xAxisIndex: 2,
-      yAxisIndex: 1,
-      data: [],
-      silent: true,
-      z: 1,
-      animation: false,
-      tooltip: { show: false },
-      markArea: { silent: true, data: areas },
-      markLine: { silent: true, symbol: 'none', label: { show: false }, data: edges },
-    },
-    legend,
-  };
-}
-
-/** Tooltip notes for a bucket that falls (partly) in period A or B. */
-export function compareNotes(ctx: ViewContext, bucket: Bucket | undefined): string[] {
-  if (!bucket) return [];
-  return compareBands(ctx)
-    .filter((b) => b.visible && b.period.to >= bucket.start && b.period.from <= bucket.end)
-    .map((b) => `${b.period.from <= bucket.start && b.period.to >= bucket.end ? 'In' : 'Partly in'} period ${b.key}`);
 }
 
 export function valueYAxes(theme: ChartTheme, fmt: (v: number) => string = fmtCompact) {

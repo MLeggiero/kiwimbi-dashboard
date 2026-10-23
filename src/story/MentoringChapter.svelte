@@ -28,7 +28,7 @@
         { name: 'Classroom, estimated from lesson counts', color: estColor, metrics: [EST_CLASSROOM] },
         { name: 'Mentorship', color: mentorshipColor, metrics: ['contact_mentorship'] },
       ],
-      unit: 'contact hours',
+      unit: 'teaching contact hours',
     }),
   );
 </script>
@@ -42,17 +42,17 @@
     <div class="s-pair stats">
       <Stat
         value={fmtInt(story.hours.total)}
-        label="contact hours"
+        label="teaching contact hours"
         text="{fmtInt(story.classroom)} in classrooms{story.estimated ? ` (${fmtInt(story.estimated)} estimated from lesson counts)` : ''}, {fmtInt(story.mentorship)} in mentoring sessions."
       />
       {#if story.hoursPerWeek}
-        <Stat value={fmtInt(story.hoursPerWeek)} label="contact hours in a typical school week" />
+        <Stat value={fmtInt(story.hoursPerWeek)} label="teaching contact hours in a typical school week" />
       {/if}
     </div>
 
     {#if !chart.empty}
       <div class="s-block">
-        <h3>Contact hours every {word}</h3>
+        <h3>Teaching contact hours every {word}</h3>
         <p class="s-note">
           <span class="key" style:--c={classroomColor}>Classroom</span>{#if story.estimated}, <span class="key" style:--c={estColor}>estimated from lesson counts</span>,{/if} and <span class="key" style:--c={mentorshipColor}>mentorship</span> hours.
         </p>

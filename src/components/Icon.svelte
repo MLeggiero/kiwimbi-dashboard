@@ -31,6 +31,10 @@
     lock: 'M5 11h14v10H5z|M8 11V7a4 4 0 0 1 8 0v4',
     x: 'M6 6l12 12|M18 6L6 18',
     calendar: 'M3 5h18v16H3z|M16 3v4|M8 3v4|M3 11h18',
+    'chevron-left': 'M15 6l-6 6 6 6',
+    'chevron-right': 'M9 6l6 6-6 6',
+    'chevron-down': 'M6 9l6 6 6-6',
+    swap: 'M4 8h15|M15 4l4 4-4 4|M20 16H5|M9 12l-4 4 4 4',
   };
 </script>
 

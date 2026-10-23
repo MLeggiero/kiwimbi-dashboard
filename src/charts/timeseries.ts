@@ -6,7 +6,7 @@ import type { EChartsCoreOption } from '../lib/echarts';
 import { fmtCompact, fmtInt, fmtOne } from '../lib/format';
 import { aggregate, cumulative, perActiveDay, rolling, rollingWindow } from '../lib/series';
 import type { ViewContext } from '../lib/view';
-import { asParams, bandSeries, baseOption, compareBandSeries, compareNotes, ESTIMATED_LABEL, estimatedColor, estimatedItemStyle, estimatedLegend, numericValue, timeXAxes, tipNote, tipRow, tipTitle, tooltipBase, valueYAxes, type LegendItem } from './common';
+import { asParams, bandSeries, baseOption, ESTIMATED_LABEL, estimatedColor, estimatedItemStyle, estimatedLegend, numericValue, timeXAxes, tipNote, tipRow, tipTitle, tooltipBase, valueYAxes, type LegendItem } from './common';
 
 export interface SeriesSpec {
   name: string;
@@ -177,9 +177,6 @@ export function buildTimeSeries(inp: TimeSeriesInput): ChartResult {
       addColumn(ctx.cmp.label, cv);
     }
   }
-  const bands = compareBandSeries(ctx);
-  if (bands.series) out.push(bands.series);
-  legend.push(...bands.legend);
   if (ctx.holidays.some(Boolean)) legend.push({ label: 'School break', color: theme.holiday, kind: 'holiday' });
   if (noReports.some((v, i) => v && !ctx.holidays[i])) legend.push({ label: 'No reports', color: theme.hatch, kind: 'hatch' });
   if (prov !== null) legend.push({ label: 'Still coming in', color: theme.ink3, kind: 'provisional' });
@@ -195,14 +192,13 @@ export function buildTimeSeries(inp: TimeSeriesInput): ChartResult {
         const id = String(p.seriesId ?? '');
         const base = id.replace(/-prov$/, '');
         const v = numericValue(p.value);
-        if (id === 'band' || id === 'compare' || seen.has(base) || v === null) continue;
+        if (id === 'band' || seen.has(base) || v === null) continue;
         seen.add(base);
         html += tipRow(String(p.color ?? theme.ink3), String(p.seriesName ?? ''), fmt(v));
       }
       if (!seen.size || noReports[i]) html += tipNote(ctx.holidays[i] ? 'School break: no reports' : 'No reports for this period', theme.ink3);
       else if (ctx.holidays[i]) html += tipNote('School break', theme.ink3);
       if (isProv(i)) html += tipNote('Reports may still be coming in', theme.ink3);
-      for (const note of compareNotes(ctx, buckets[i])) html += tipNote(note, note.endsWith('A') ? theme.cmpA : theme.cmpB);
       return html;
     },
   };
@@ -215,7 +211,7 @@ export function buildTimeSeries(inp: TimeSeriesInput): ChartResult {
   return {
     option: {
       ...baseOption(),
-      grid: { left: 4, right: 12, top: bands.series ? 24 : 14, bottom: 4 },
+      grid: { left: 4, right: 12, top: 14, bottom: 4 },
       tooltip,
       xAxis: timeXAxes(theme, buckets),
       yAxis: valueYAxes(theme, rate ? (v) => fmtOne(v) : fmtCompact),

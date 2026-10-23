@@ -5,23 +5,21 @@
   import { buildTimeSeries } from '../charts/timeseries';
   import ChartCard from '../components/ChartCard.svelte';
   import EChart from '../components/EChart.svelte';
-  import StatTile from '../components/StatTile.svelte';
-  import { currentView, deltaLabel, kpi, periodWord, raceView, rangeText, targetFor } from '../lib/current.svelte';
+  import { currentView, periodWord, raceView, rangeText, targetFor } from '../lib/current.svelte';
   import type { ECharts } from '../lib/echarts';
   import { fmtInt } from '../lib/format';
   import { periodNoun, raceTakeaway, schoolRows, schoolsTakeaway, typicalPeriod } from '../lib/manager';
+  import { rangeStats } from '../lib/series';
 
   // The meals count is the three partner schools. Staff and tailoring meals are shown
   // separately and never added to it.
   const ctx = $derived.by(currentView);
-  const sites = $derived(MEAL_SCHOOLS.map((id, i) => ({ id, label: METRIC_BY_ID[id].short, color: ctx.theme.series[i], k: kpi(ctx, [id]) })));
-  const total = $derived(kpi(ctx, MEAL_SCHOOLS));
-  const staff = $derived(kpi(ctx, STAFF_MEALS));
-  const perDay = $derived(total.stats.coveredWeekdays ? total.stats.total / total.stats.coveredWeekdays : null);
+  const sites = $derived(MEAL_SCHOOLS.map((id, i) => ({ id, label: METRIC_BY_ID[id].short, color: ctx.theme.series[i] })));
+  const total = $derived(rangeStats(ctx.ds, MEAL_SCHOOLS, ctx.from, ctx.to).total);
 
   const typical = $derived(typicalPeriod(ctx, MEAL_SCHOOLS));
   const mainTitle = $derived(
-    ctx.view === 'cumulative' ? `${fmtInt(total.value)} school meals in ${rangeText(ctx)}` : typical === null ? 'School meals by school' : `About ${fmtInt(typical)} school meals in a typical ${periodNoun(ctx)}`,
+    ctx.view === 'cumulative' ? `${fmtInt(total)} school meals in ${rangeText(ctx)}` : typical === null ? 'School meals by school' : `About ${fmtInt(typical)} school meals in a typical ${periodNoun(ctx)}`,
   );
   const main = $derived(buildTimeSeries({ ctx, title: mainTitle, series: sites.map((s) => ({ name: s.label, color: s.color, metrics: [s.id] })), unit: 'meals', activeDays: 'weekdays', target: targetFor(ctx, 'meals') }));
 
@@ -40,25 +38,15 @@
   let staffRef = $state.raw<ECharts | null>(null);
 </script>
 
-<div class="grid kpis">
-  <StatTile label="School meals (3 schools)" value={total.value} delta={total.delta} deltaLabel={deltaLabel(ctx)} spark={total.spark} sub={perDay ? `About ${fmtInt(perDay)} per school day` : 'No reports in this range'} />
-  {#each sites as s (s.id)}
-    <StatTile label={s.label} value={s.k.value} delta={s.k.delta} deltaLabel={deltaLabel(ctx)} spark={s.k.spark} color={s.color} sub={s.k.value === null ? 'No reports in this range' : undefined} />
-  {/each}
-  <StatTile label="Staff & tailoring" value={staff.value} delta={staff.delta} deltaLabel={deltaLabel(ctx)} spark={staff.spark} color={ctx.theme.series[5]} sub="Not in the meals count" />
-</div>
-
-<div style="margin-top:16px">
-  <ChartCard title={mainTitle} subtitle="School meals per {periodWord(ctx)}, stacked by school, with the 4-week average. Reports that cover several weeks are spread across them." legend={main.legend} table={main.table} empty={main.empty} chart={mainChart}>
-    <EChart option={main.option} height={320} label={main.summary} onready={(c) => (mainChart = c)} />
-  </ChartCard>
-</div>
+<ChartCard title={mainTitle} subtitle="School meals per {periodWord(ctx)}, stacked by school, with the 4-week average. Reports that cover several weeks are spread across them." legend={main.legend} table={main.table} empty={main.empty} chart={mainChart}>
+  <EChart option={main.option} height={320} label={main.summary} onready={(c) => (mainChart = c)} />
+</ChartCard>
 
 <div class="grid two" style="margin-top:16px">
   <ChartCard title={schoolsTakeaway(schools)} subtitle={schoolChart.mode === 'change' ? `Change on the same weeks last year, and meals per school day, ${rangeText(ctx)}` : `Meals per school day with a report, ${rangeText(ctx)}`} empty={schoolChart.empty}>
     <EChart option={schoolChart.option} height={schoolChart.height} label={schoolChart.summary} />
   </ChartCard>
-  <ChartCard title={raceTakeaway(raceCtx, MEAL_SCHOOLS, 'meals', target)} subtitle="Running total from {fmtDayShort(raceCtx.from)}{race.legend.some((l) => l.kind === 'ghost') ? ', against the same weeks last year' : ''}{target ? ' and the year’s target pace' : ''}" legend={race.legend} table={race.table} empty={race.empty} chart={raceChart}>
+  <ChartCard title={raceTakeaway(raceCtx, MEAL_SCHOOLS, 'meals', target)} subtitle="Always this year: running total from {fmtDayShort(raceCtx.from)}{race.legend.some((l) => l.kind === 'ghost') ? ', against the same weeks last year' : ''}{target ? ' and the year’s target pace' : ''}" legend={race.legend} table={race.table} empty={race.empty} chart={raceChart}>
     <EChart option={race.option} height={260} label={race.summary} onready={(c) => (raceChart = c)} />
   </ChartCard>
 </div>

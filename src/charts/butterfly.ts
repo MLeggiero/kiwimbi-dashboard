@@ -6,7 +6,7 @@ import { fmtCompact, fmtInt, fmtOne } from '../lib/format';
 import { aggregate, cumulative, perActiveDay } from '../lib/series';
 import { EST_CLASSROOM } from '../lib/teaching';
 import type { ViewContext } from '../lib/view';
-import { asParams, bandSeries, baseOption, compareBandSeries, compareNotes, ESTIMATED_LABEL, estimatedItemStyle, estimatedLegend, numericValue, timeXAxes, tipNote, tipRow, tipTitle, tooltipBase, valueYAxes, type LegendItem } from './common';
+import { asParams, bandSeries, baseOption, ESTIMATED_LABEL, estimatedItemStyle, estimatedLegend, numericValue, timeXAxes, tipNote, tipRow, tipTitle, tooltipBase, valueYAxes, type LegendItem } from './common';
 import type { ChartResult } from './timeseries';
 
 export type TeachingSplit = 'level' | 'school';
@@ -14,7 +14,7 @@ export type TeachingSplit = 'level' | 'school';
 type Vals = (number | null)[];
 
 /**
- * Contact hours per period: classroom hours above the line and mentorship hours below, each
+ * Teaching contact hours per period: classroom hours above the line and mentorship hours below, each
  * stacked by level or by school. Hours estimated from old lesson counts (no school or level)
  * sit above the line in the estimated style. Follows Show: totals, running total or per school day.
  */
@@ -57,9 +57,6 @@ export function buildTeachingChart(ctx: ViewContext, by: TeachingSplit): ChartRe
   if (ctx.holidays.some(Boolean)) legend.push({ label: 'School break', color: theme.holiday, kind: 'holiday' });
   if (noReports.some((v, i) => v && !ctx.holidays[i])) legend.push({ label: 'No reports', color: theme.hatch, kind: 'hatch' });
   if (prov !== null) legend.push({ label: 'Still coming in', color: theme.ink3, kind: 'provisional' });
-  const bands = compareBandSeries(ctx);
-  legend.push(...bands.legend);
-  if (bands.series) series.push(bands.series);
   const [yMain, yBand] = valueYAxes(theme, (v) => (view === 'rate' ? fmtOne(Math.abs(v)) : fmtCompact(Math.abs(v))));
 
   // Table and CSV: one row per period, school and activity, with estimated hours marked.
@@ -78,7 +75,7 @@ export function buildTeachingChart(ctx: ViewContext, by: TeachingSplit): ChartRe
   return {
     option: {
       ...baseOption(),
-      grid: { left: 4, right: 12, top: bands.series ? 24 : 14, bottom: 4 },
+      grid: { left: 4, right: 12, top: 14, bottom: 4 },
       tooltip: {
         ...tooltipBase(theme),
         formatter: (rawParams: unknown) => {
@@ -87,12 +84,11 @@ export function buildTeachingChart(ctx: ViewContext, by: TeachingSplit): ChartRe
           let html = tipTitle(buckets[i]?.title ?? '');
           for (const p of params) {
             const v = numericValue(p.value);
-            if (p.seriesId === 'band' || p.seriesId === 'compare' || v === null) continue;
+            if (p.seriesId === 'band' || v === null) continue;
             html += tipRow(String(p.color), String(p.seriesName), fmt(Math.abs(v)));
           }
           if (noReports[i]) html += tipNote(ctx.holidays[i] ? 'School break: no reports' : 'No reports for this period', theme.ink3);
           if (prov !== null && i >= prov) html += tipNote('Reports may still be coming in', theme.ink3);
-          for (const note of compareNotes(ctx, buckets[i])) html += tipNote(note, note.endsWith('A') ? theme.cmpA : theme.cmpB);
           return html;
         },
       },
@@ -100,9 +96,9 @@ export function buildTeachingChart(ctx: ViewContext, by: TeachingSplit): ChartRe
       yAxis: [yMain, yBand],
       series,
     },
-    table: { columns: ['Period', 'School', 'Level', 'Activity', 'Contact hours', 'Estimated from lesson counts'], rows },
+    table: { columns: ['Period', 'School', 'Level', 'Activity', 'Teaching contact hours', 'Estimated from lesson counts'], rows },
     legend,
-    summary: `Contact hours per period, ${fmtRange(ctx.from, ctx.to)}: classroom hours above the line and mentorship hours below, by ${by}.`,
+    summary: `Teaching contact hours per period, ${fmtRange(ctx.from, ctx.to)}: classroom hours above the line and mentorship hours below, by ${by}.`,
     empty: noReports.every(Boolean),
   };
 }

@@ -49,7 +49,7 @@
       { value: story.meals.total, label: 'lunches served', note: story.meals.perSchoolDay ? `About ${fmtInt(story.meals.perSchoolDay)} a school day` : '', color: C.lunch },
       { value: story.visits.total, label: 'library visits', note: story.visits.perSchoolDay ? `About ${fmtInt(story.visits.perSchoolDay)} a school day` : '', color: C.water },
       { value: story.books.total, label: 'books borrowed', note: ratioText ? `${ratioText[0].toUpperCase()}${ratioText.slice(1)}` : '', color: C.coral },
-      { value: story.hours.total, label: 'contact hours', note: story.hours.total ? `${fmtInt(story.classroom)} classroom, ${fmtInt(story.mentorship)} mentorship` : '', color: C.leaf },
+      { value: story.hours.total, label: 'teaching contact hours', note: story.hours.total ? `${fmtInt(story.classroom)} classroom, ${fmtInt(story.mentorship)} mentorship` : '', color: C.leaf },
       { value: attendances || null, label: 'program attendances', note: running.length ? `Across ${running.length} skills program${running.length === 1 ? '' : 's'}` : '', color: C.teal },
     ].filter((x) => x.value !== null),
   );
@@ -83,7 +83,7 @@
 
   {#if numbers.length}
     <p class="lead">
-      {when}, Kiwimbi’s programs {#if story.meals.total}served <strong>{fmtInt(story.meals.total)}</strong> school lunches{/if}{#if story.visits.total}{story.meals.total ? ', ' : ''}welcomed <strong>{fmtInt(story.visits.total)}</strong> library visits{/if}{#if story.hours.total}{story.meals.total || story.visits.total ? ' and ' : ''}spent <strong>{fmtInt(story.hours.total)}</strong> contact hours teaching and mentoring{/if}.
+      {when}, Kiwimbi’s programs {#if story.meals.total}served <strong>{fmtInt(story.meals.total)}</strong> school lunches{/if}{#if story.visits.total}{story.meals.total ? ', ' : ''}welcomed <strong>{fmtInt(story.visits.total)}</strong> library visits{/if}{#if story.hours.total}{story.meals.total || story.visits.total ? ' and ' : ''}spent <strong>{fmtInt(story.hours.total)}</strong> teaching contact hours with students{/if}.
     </p>
     <div class="numbers">
       {#each numbers as n (n.label)}
@@ -125,7 +125,7 @@
       <h2><span class="dot" style:background={C.leaf}></span>{MENTORING.title}</h2>
       <p>{MENTORING.body}</p>
       <h3>
-        Contact hours each {word}
+        Teaching contact hours each {word}
         <span class="key"
           ><span class="sw" style:background={C.leaf}></span>Classroom {#if story.estimated}<span class="sw" style:background={estColor}></span>Estimated from lesson counts {/if}<span class="sw" style:background={C.teal}></span>Mentorship</span
         >
@@ -138,7 +138,7 @@
         ]}
         {labels}
         period={word}
-        label="Contact hours each {word}, classroom and mentorship"
+        label="Teaching contact hours each {word}, classroom and mentorship"
         height={130}
       />
     </section>

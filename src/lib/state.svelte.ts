@@ -1,4 +1,4 @@
-import { dayToIso, isoToDay } from '../../shared/dates';
+import { dayToIso, isoToDay, shiftMonths, shiftYears } from '../../shared/dates';
 import type { OpsPayload } from '../../shared/types';
 import { fetchDashboard, fetchOps } from './api';
 import { buildDataset, type Dataset } from './dataset';
@@ -33,8 +33,11 @@ class AppState {
   customTo = $state<number | null>(null);
   gran = $state<GranChoice>('auto');
   view = $state<ViewMode>('weekly');
+  /** Draw last year as a grey line on the charts. */
+  lastYear = $state(false);
+  /** The "Compare two periods" tool: 'none' while it is closed. Nothing is drawn on the charts. */
   compare = $state<CompareMode>('none');
-  /** Period A when comparing; custom A/B dates are kept as [from, to]. */
+  /** The first period when comparing; custom dates for either period are kept as [from, to]. */
   focus = $state<Focus>('range');
   customA = $state<[number, number] | null>(null);
   customB = $state<[number, number] | null>(null);
@@ -73,6 +76,8 @@ class AppState {
 
   granularity = $derived<Granularity>(this.gran === 'auto' ? autoGranularity(this.range[0], this.range[1]) : this.gran);
 
+  /** What the charts draw: at most last year's line over the same dates. */
+  chartSpec = $derived<CompareSpec>({ mode: this.lastYear ? 'yoy' : 'none', focus: 'range' });
   compareSpec = $derived<CompareSpec>({ mode: this.compare, focus: this.focus, a: this.customA, b: this.customB });
   comparison = $derived<Comparison | null>(this.data ? makeComparison(this.compareSpec, this.data, this.range, this.granularity) : null);
 
@@ -92,10 +97,16 @@ class AppState {
   }
 
   setCompare(mode: CompareMode) {
-    // Custom dates start from whatever B was, so switching is a small step, not a jump.
+    // Custom dates start from whatever the second period was, so switching is a small step, not a jump.
     if (mode === 'custom' && this.comparison) this.customB = [this.comparison.b.from, this.comparison.b.to];
     else if (mode === 'custom' && this.data) this.customB = [this.range[0] - (this.range[1] - this.range[0] + 1), this.range[0] - 1];
     this.compare = mode;
+  }
+
+  /** Open the comparison on something concrete: the last 4 weeks against the 4 before. */
+  openCompare() {
+    if (this.focus === 'range') this.focus = 'last4w';
+    this.setCompare('prev');
   }
 
   setFocus(f: Focus) {
@@ -103,11 +114,24 @@ class AppState {
     this.focus = f;
   }
 
-  /** Widen the chart's dates so periods A and B both show on every chart. */
-  showComparison() {
-    const c = this.comparison;
-    if (!c || !this.data) return;
-    this.setCustom(Math.min(c.a.from, c.b.from, this.range[0]), Math.min(Math.max(c.a.to, c.b.to, this.range[1]), this.data.today));
+  /**
+   * Move the chart dates back (-1) or forward (1) by their own length: a month for "Last
+   * month", a year for "Year to date", the term before or after for "This term". Never
+   * before the first report or past today.
+   */
+  stepRange(dir: -1 | 1) {
+    const ds = this.data;
+    if (!ds) return;
+    const [from, to] = this.range;
+    const p = this.activePreset;
+    let next: [number, number];
+    const t = ds.terms.findIndex((x) => from >= x.start && from <= x.end);
+    if (p === 'term' && ds.terms[t + dir]) next = [ds.terms[t + dir].start, ds.terms[t + dir].end];
+    else if (p === 'last1m' || p === 'last3m') next = [shiftMonths(from, dir * (p === 'last1m' ? 1 : 3)), shiftMonths(to, dir * (p === 'last1m' ? 1 : 3))];
+    else if (p === 'ytd' || p === 'lastyear') next = [shiftYears(from, dir), shiftYears(to, dir)];
+    else next = [from + dir * (to - from + 1), to + dir * (to - from + 1)];
+    if (next[1] < ds.firstDay || next[0] > ds.today) return;
+    this.setCustom(Math.max(next[0], ds.firstDay), Math.min(next[1], ds.today));
   }
 
   setCustom(from: number, to: number) {
@@ -153,6 +177,7 @@ class AppState {
       to: this.preset === 'custom' && this.customTo !== null ? dayToIso(this.customTo) : '',
       g: this.gran === 'auto' ? '' : this.gran,
       v: this.view === 'weekly' ? '' : this.view,
+      ly: this.lastYear ? '1' : '',
       c: this.compare === 'none' ? '' : this.compare,
       f: this.compare === 'none' || this.focus === 'range' ? '' : this.focus,
       af: this.compare !== 'none' && this.focus === 'custom' && this.customA ? dayToIso(this.customA[0]) : '',
@@ -168,6 +193,7 @@ class AppState {
     this.page = pick(p.p, PAGES.map((x) => x.id)) ?? 'overview';
     this.gran = pick(p.g, ['auto', 'week', 'month', 'term'] as const) ?? 'auto';
     this.view = pick(p.v, ['weekly', 'cumulative', 'rate'] as const) ?? 'weekly';
+    this.lastYear = p.ly === '1';
     this.compare = pick(p.c, COMPARE_MODES) ?? 'none';
     this.focus = pick(p.f, FOCUS_CHOICES.map((x) => x.id)) ?? 'range';
     const days = (a?: string, b?: string): [number, number] | null => {

@@ -34,39 +34,7 @@ export function typicalPeriod(ctx: ViewContext, metrics: SeriesKey[]): number | 
 
 export const periodNoun = (ctx: ViewContext) => (ctx.g === 'week' ? 'week' : ctx.g === 'month' ? 'month' : 'term');
 
-// ------------------------------------------------------------------ overview: change vs last year
-
-export interface ChangeRow {
-  label: string;
-  change: number | null;
-  total: number;
-}
-
-const HEADLINES: { label: string; metrics: MetricId[] }[] = [
-  { label: 'School meals', metrics: MEAL_SCHOOLS },
-  { label: 'Library visits', metrics: ['library_visits'] },
-  { label: 'Books checked out', metrics: ['books_checked_out'] },
-  { label: 'Contact hours', metrics: TEACHING_METRICS },
-  { label: 'Program attendances', metrics: ENRICHMENT },
-];
-
-export function headlineChanges(ctx: ViewContext): ChangeRow[] {
-  return HEADLINES.map((h) => ({ label: h.label, change: yearChange(ctx.ds, h.metrics, ctx.from, ctx.to), total: rangeStats(ctx.ds, h.metrics, ctx.from, ctx.to).total }));
-}
-
-export function changesTakeaway(rows: ChangeRow[]): string {
-  const known = rows.filter((r): r is ChangeRow & { change: number } => r.change !== null);
-  if (!known.length) return 'Not enough reports from last year to compare yet';
-  const up = known.filter((r) => r.change >= 0.02);
-  const down = known.filter((r) => r.change <= -0.02);
-  const top = [...known].sort((a, b) => b.change - a.change)[0];
-  const low = [...known].sort((a, b) => a.change - b.change)[0];
-  if (!down.length) return `Everything is up or level on last year, led by ${top.label.toLowerCase()} (+${pct(top.change)})`;
-  if (!up.length) return `Everything is down or level on last year; ${low.label.toLowerCase()} fell most (−${pct(low.change)})`;
-  return `${top.label} up ${pct(top.change)} on last year; ${low.label.toLowerCase()} down ${pct(low.change)}`;
-}
-
-// ------------------------------------------------------------------ overview: reporting grid
+// ------------------------------------------------------------------ Data health: reporting grid
 
 export interface GridRow {
   label: string;

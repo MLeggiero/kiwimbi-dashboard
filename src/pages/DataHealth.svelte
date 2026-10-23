@@ -3,10 +3,16 @@
   import { METRIC_BY_ID, STREAMS } from '../../shared/metrics';
   import { fmtDay, fmtDayShort, isoToDay, startOfWeek } from '../../shared/dates';
   import type { IssueType } from '../../shared/types';
+  import { buildCalendar } from '../charts/calendar';
+  import ChartCard from '../components/ChartCard.svelte';
+  import DotGrid from '../components/DotGrid.svelte';
+  import EChart from '../components/EChart.svelte';
   import EmptyState from '../components/EmptyState.svelte';
   import Icon from '../components/Icon.svelte';
   import StatTile from '../components/StatTile.svelte';
+  import { currentView } from '../lib/current.svelte';
   import { fmtInt } from '../lib/format';
+  import { reportingGrid } from '../lib/manager';
   import { rangeStats } from '../lib/series';
   import { app } from '../lib/state.svelte';
 
@@ -36,6 +42,11 @@
 
   const ds = $derived(app.data!);
   const ops = $derived(app.ops);
+  // Which programs reported lately, and on which days: here rather than on the other pages,
+  // which show the figures only.
+  const reporting = $derived(reportingGrid(ds));
+  const ctx = $derived.by(currentView);
+  const calendar = $derived(buildCalendar(ctx, 'streams'));
   const names = $derived(new Map((ops?.reporters ?? []).map((r) => [r.id, r.name])));
   const weeks = $derived.by(() => {
     const end = startOfWeek(Math.min(app.range[1], ds.today));
@@ -120,6 +131,12 @@
   </div>
 
   <section class="card block">
+    <h2>{reporting.takeaway}</h2>
+    <p class="sub">Reports in each of the last 12 weeks. Filled = at least one report that week. The note on the right is the latest day reported.</p>
+    <DotGrid columns={reporting.weeks} rows={reporting.rows} label="Which programs reported in each of the last 12 weeks" unit="reported" />
+  </section>
+
+  <section class="card block">
     <h2>Who reported, week by week</h2>
     <p class="sub">Submissions whose dates fall in each week, for the {weeks.length} weeks up to {fmtDay(weeks[weeks.length - 1] + 6)}. Visible to dashboard managers only.</p>
     {#if reporterRows.length}
@@ -152,6 +169,12 @@
       {/each}
     </div>
   </section>
+
+  <div class="block">
+    <ChartCard title="Programs reporting, day by day" subtitle="Each square is a day. Darker means more programs reported that day." legend={calendar.legend} table={calendar.table} empty={calendar.empty}>
+      <EChart option={calendar.option} height={170} label={calendar.summary} />
+    </ChartCard>
+  </div>
 
   <div class="grid two">
     <section class="card block">

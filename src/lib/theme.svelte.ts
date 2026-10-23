@@ -18,9 +18,6 @@ export interface ChartTheme {
   ramp: string[];
   good: string;
   crit: string;
-  /** Comparison periods A and B. */
-  cmpA: string;
-  cmpB: string;
 }
 
 const STORAGE_KEY = 'kiwimbi-theme';
@@ -81,7 +78,5 @@ export function readChartTheme(): ChartTheme {
     ramp: [0, 1, 2, 3, 4, 5, 6].map((i) => v(`--ramp-${i}`)),
     good: v('--good'),
     crit: v('--crit'),
-    cmpA: v('--cmp-a'),
-    cmpB: v('--cmp-b'),
   };
 }

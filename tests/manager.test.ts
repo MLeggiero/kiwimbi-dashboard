@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildDataset } from '../src/lib/dataset';
 import {
-  changesTakeaway,
-  headlineChanges,
   programRows,
   programsTakeaway,
   raceTakeaway,
@@ -31,14 +29,6 @@ const ctx = (from: string, to: string, g: 'week' | 'month' = 'week') => makeView
 const ytd = ctx('2026-01-01', today);
 
 describe('takeaway titles', () => {
-  it('names the biggest movers against last year', () => {
-    const rows = headlineChanges(ytd);
-    expect(rows.map((r) => r.label)).toEqual(['School meals', 'Library visits', 'Books checked out', 'Contact hours', 'Program attendances']);
-    expect(changesTakeaway(rows)).toMatch(/last year/);
-    expect(changesTakeaway(rows.map((r) => ({ ...r, change: null })))).toBe('Not enough reports from last year to compare yet');
-    expect(changesTakeaway([{ label: 'A', change: 0.1, total: 1 }, { label: 'B', change: -0.2, total: 1 }])).toBe('A up 10% on last year; b down 20%');
-  });
-
   it('describes a typical period from complete, settled periods only', () => {
     const typical = typicalPeriod(ytd, MEAL_SCHOOLS)!;
     expect(typical).toBeGreaterThan(0);
